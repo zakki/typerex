@@ -15,6 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Location
+open Lexing
 open OcpLang
 open Util
 open Location
@@ -168,11 +170,10 @@ let id2comments program id =
   let comments =
     try
       let loc = FindName.id2loc ~accept_none:false program id in
-      let open Location in let open Lexing in
       let pos_fname = Program.file_of_loc ~prefix:`absolute program loc in
       let loc = { loc with
-        loc_start = { loc.loc_start with pos_fname };
-        loc_end = { loc.loc_end with pos_fname } } in
+        loc_start = { loc.loc_start with pos_fname = pos_fname };
+        loc_end = { loc.loc_end with pos_fname = pos_fname } } in
       fdebugln "get comment in %a" print loc;
       Extract.get_comments_permissive
         ~odoc:false loc
@@ -368,7 +369,14 @@ let last2old_range program unit (a, b) =
   ProgramCache.last2old `char program unit b
 *)
 
-let locate_ident_from_def_or_use program (prefix, _ as source) (b, e) =
+type region = [`lc of (int * int) * (int * int) | `cnum of int * int]
+
+let region2pos = function
+  | `lc (b, e) -> `lc b, `lc e
+  | `cnum (b, e) -> `cnum b, `cnum e
+
+let locate_ident_from_def_or_use program (prefix, _ as source) region =
+  let b, e = region2pos region in
   let unit = Program.find_source program source in
   let loc = last_cnum2old_lc program unit b, last_cnum2old_lc program unit e in
   let s =
@@ -425,7 +433,8 @@ let locate_ident_from_def_or_use program (prefix, _ as source) (b, e) =
       debugln "Found a definition of %s" (Ident.name id);
       kind, id, desc, `def
 
-let visible_ident_definition p source (b, e) program =
+let visible_ident_definition p source region program =
+  let b, e = region2pos region in
   let source_file = Program.find_source program source in
   let loc =
     last_cnum2old_lc program source_file b, last_cnum2old_lc program source_file e in

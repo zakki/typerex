@@ -34,15 +34,15 @@
  </div>
 
 <div class="contents">
-<H1 CLASS="chapter"><A NAME="htoc15"></A>TypeRex development environment for Emacs</H1><P>This chapter explains how to enable and use the TypeRex environment
-for editing an OCaml program.</P><H2 CLASS="section"><A NAME="toc6"></A><A NAME="htoc16">2.1</A>&#XA0;&#XA0;TypeRex environment setup</H2><P>Using the TypeRex environment for an OCaml project requires two
+<H1 CLASS="chapter"><A NAME="htoc16"></A>TypeRex development environment for Emacs</H1><P>This chapter explains how to enable and use the TypeRex environment
+for editing an OCaml program.</P><H2 CLASS="section"><A NAME="toc6"></A><A NAME="htoc17">2.1</A>&#XA0;&#XA0;TypeRex environment setup</H2><P>Using the TypeRex environment for an OCaml project requires two
 configuration steps: ensuring the generation of required binary
 annotations, and providing a minimal description of the project&#X2019;s
 paths. Those steps are detailed in the following.</P><H4 CLASS="subsubsection">Keeping binary annotations up-to-date</H4><P>The binary annotations must be up-to-date for TypeRex to
 function properly, in particular for refactoring, and these
 annotations are not updated by TypeRex itself. This implies that
 successive refactoring actions require a recompilation of the impacted
-part of the program at each step.</P><H3 CLASS="subsection"><A NAME="htoc17">2.1.1</A>&#XA0;&#XA0;Generating .cmt(i) files</H3><P>The most simple way of generating binary annotations is to setup your
+part of the program at each step.</P><H3 CLASS="subsection"><A NAME="htoc18">2.1.1</A>&#XA0;&#XA0;Generating .cmt(i) files</H3><P>The most simple way of generating binary annotations is to setup your
 build process to use the provided <CODE>ocp-*</CODE> versions of the OCaml
 compilers, for example <CODE>ocp-ocamlc.opt</CODE> instead of
 <CODE>ocamlc.opt</CODE>. These are wrappers which behave as the original
@@ -64,7 +64,13 @@ or
         Options.ocamlc :=
           S [ A"ocp-wrapper"; A"-save-types"; ... ; A"ocamlc"]
 </FONT></PRE><P>
-to your <CODE>myocamlbuild.ml</CODE> file.</P><H4 CLASS="subsubsection">ocamlfind (without ocamlbuild)</H4><P>
+to your <CODE>myocamlbuild.ml</CODE> file.
+Another option is to invoke ocamlbuild with options:
+
+</FONT></P><PRE CLASS="verbatim">ocamlbuild -ocamlc ocp-ocamlc.opt -ocamlopt ocp-ocamlopt.opt
+</FONT></PRE><P>
+Finally, don&#X2019;t forget t add <CODE>CMT _build</CODE> to your <CODE>.typerex</CODE> file
+(see below).</P><H4 CLASS="subsubsection">ocamlfind (without ocamlbuild)</H4><P>
 Add
 
 </FONT></P><PRE CLASS="verbatim">        ocamlc = "ocp-ocamlc.opt"
@@ -82,34 +88,41 @@ second defines a tool-chain "typerex" which you then specify by calling
 </FONT></PRE><H4 CLASS="subsubsection">Using a separate build process</H4><P>
 Alternatively, ocp-type provides a file Makefile.ocp-type.template,
 which is able to perform the ocp-type compilation automatically for
-simple projects.</P><H3 CLASS="subsection"><A NAME="htoc18">2.1.2</A>&#XA0;&#XA0;Project configuration</H3><P>Most functionalities of TypeRex rely on some knowledge of the
-edited program (source files, libraries&#X2026;) which should be
-specified in one of the following ways.</P><H4 CLASS="subsubsection">.typerex file</H4><P>
-TypeRex may use a very simple configuration file to know about a
-project&#X2019;s directories and libraries. When it is invoked on a source file
-<CODE>&lt;file.ml&gt;</CODE>, it looks for file <CODE>.typerex</CODE> in the directory containing
-<CODE>&lt;file.ml&gt;</CODE>, or its parent directories, back to the file system&#X2019;s root.</P><P>This file should specify the set of directories to search for OCaml
-source files, and the set of directories to include in the load path
-(<EM>i.e.</EM>, libraries). It is also possible to exclude some source
-files or whole compilation units.</P><P>The syntax of the <CODE>.typerex</CODE> file is as follows:</P><PRE CLASS="verbatim">        &lt;project file&gt; := &lt;line&gt;* // file must end with a newline
+simple projects.</P><H3 CLASS="subsection"><A NAME="htoc19">2.1.2</A>&#XA0;&#XA0;Project configuration: .typerex file</H3><P>Most functionalities of TypeRex rely on some knowledge of the edited
+program (source files, libraries&#X2026;) which should be specified in a
+very simple project file at the &#X201C;root&#X201D; of its source tree with name
+<CODE>.typerex</CODE>.
+When TypeRex is invoked on a source file <CODE>&lt;file.ml&gt;</CODE>, it looks
+for file <CODE>.typerex</CODE> in the directory containing <CODE>&lt;file.ml&gt;</CODE>,
+or its parent directories, back to the file system&#X2019;s root. This file
+is read at each command invocation (except syntax coloring and
+auto-completion) so modifications are taken into account immediately.</P><H4 CLASS="subsubsection">Syntax of .typerex files</H4><P>
+The <CODE>.typerex</CODE> file should specify the set of directories to
+search for OCaml source files, and the set of directories to include
+in the load path (<EM>i.e.</EM>, libraries). It is also possible to
+exclude some source files or whole compilation units, or to force
+files to be included whatever their extension (if any).</P><P>The syntax of the <CODE>.typerex</CODE> file is as follows:</P><PRE CLASS="verbatim">        &lt;project file&gt; := &lt;line&gt;* // file must end with a newline
 
-        &lt;line&gt; := &lt;dirs&gt;     // add all contained source files (non-recursive)
-                | I&lt;dirs&gt;    // include &lt;dirs&gt; as external libraries
-                             // +&lt;dir&gt; means &lt;stdlib&gt;/&lt;dir&gt;
-                | -&lt;files&gt;   // ignore these source files
-                | CMT &lt;dir&gt;  // search .cmt(i)s here instead of in source dir
-                | NOSTDLIB   // do not include the standard library path
+        &lt;line&gt; := &lt;dirs&gt;        // add all contained source files (non-recursive)
+                | I&lt;dirs&gt;       // include &lt;dirs&gt; as external libraries
+                                // +&lt;dir&gt; means &lt;stdlib&gt;/&lt;dir&gt;
+                | -&lt;files&gt;      // ignore these source files
+                | IMPL &lt;files&gt;  // treat these as implementation files
+                | INTF &lt;files&gt;  // treat these as interface files
+                | CMT &lt;dir&gt;     // search .cmt(i)s here instead of in source dir
+                | NOSTDLIB      // do not include the standard library path
                 | #&lt;comment&gt;
 
         &lt;dirs&gt; := white-space-separated list of directories
-        &lt;files&gt; := white-space-separated list of .ml, .mli, .mll, and .mly files
+        &lt;files&gt; := white-space-separated list of files
 </FONT></PRE><P>
 Relative directory names are interpreted with respect to the
 directory containing the project file <CODE>.typerex</CODE>, and the project
 directory itself may be denoted by &#X2019;.&#X2019;, but the shortcuts &#X2019;&#X223C;&#X2019; and
 &#X2019;&#X223C;<CODE>user</CODE>&#X2019; are not supported. Note that <CODE>-&lt;prefix&gt;</CODE> is a
 shorthand for <CODE>-&lt;prefix&gt;.ml &lt;prefix&gt;.mli ...</CODE> See <CODE>.typerex</CODE> in
-the TypeRex root directory for an example.</P><P><B>Meaning of project and library directories:</B> Lines starting with
+the TypeRex root directory for an example.</P><H4 CLASS="subsubsection">Meaning of project and library directories</H4><P>
+Lines starting with
 <CODE>I</CODE> indicate that the specified directories are considered as
 <EM>library</EM> and not as project&#X2019;s directories. The meaning of this
 distinction, which may change in the future, is currently the
@@ -127,7 +140,8 @@ libraries (see the documentation for renaming and grep). This saves
 some computation time and is sound unless a library depends on the
 program (but the same question arises when the considered program is
 meant to be a library)
-</LI></UL><P><B>Pack modules (experimental):</B> Pack modules are understood by
+</LI></UL><H4 CLASS="subsubsection">Pack modules (experimental)</H4><P>
+Pack modules are understood by
 TypeRex if the source directories contain either a file
 </P><UL CLASS="itemize"><LI CLASS="li-itemize">
 <CODE>pack.mlpack</CODE> in the ocamlbuild format: a list of module
@@ -135,32 +149,40 @@ names, possibly qualified (using <CODE>/</CODE>) by a path relative to the
 directory containing the <CODE>pack.mlpack</CODE> file, or
 </LI><LI CLASS="li-itemize"><CODE>pack.cmt</CODE>, whose contents is a pack module (such as
 generated by <CODE>ocp-type -pack</CODE>. This option only works if the
-packed modules are in the same directory as the resulting pack.
-</LI></UL><P><CODE><B>CMT &lt;dir&gt;</B></CODE><B> syntax:</B> It is possible to specify a <CODE>CMT</CODE>
+packed modules are in the same directory as the resulting pack,
+which is not the case when compiling with <CODE>ocamlbuild</CODE>.
+</LI></UL><H4 CLASS="subsubsection">Other options</H4><P><CODE><B>CMT &lt;dir&gt;</B></CODE><B> syntax:</B> It is possible to specify a <CODE>CMT</CODE>
 directory to search for <CODE>.cmt(i)</CODE> files when they are not found
 at the same place as the source files. This is needed if the build
 system moves the files around, but then if several modules (in
 different directories) have the same name, then outdated cmts won&#X2019;t be
 assigned unless there only is one (matching with the source digest to
-resolve ambiguity).</P><H4 CLASS="subsubsection">Fallback</H4><P>If no specific configuration is provided, TypeRex considers as
+resolve ambiguity).</P><P><CODE><B>IMPL &lt;files&gt;</B></CODE><B>, </B><CODE><B>INTF &lt;files&gt;</B></CODE><B>:</B> Use this to use
+TypeRex on source files with special extension (or none). The
+subdirectory containing these files still needs to be specified in the
+<CODE>.typerex</CODE> file. You will also have to enable TypeRex mode for
+those, either manually with <CODE>M-x typerex-mode</CODE>, or by extending
+<CODE>auto-mode-alist</CODE> or <CODE>interpreter-mode-alist</CODE> (see
+<CODE>emacs.append</CODE>).</P><P><CODE><B>NOSTDLIB</B></CODE><B>:</B> Do not implicitely include the standard library
+path. This is required when using TypeRex on the OCaml compiler.</P><H4 CLASS="subsubsection">Fallback</H4><P>If no specific configuration is provided, TypeRex considers as
 program the set of OCaml source files present in the directory
 containing the edited source file, with no libraries other than the
-OCaml stdlib.</P><H2 CLASS="section"><A NAME="toc7"></A><A NAME="htoc19">2.2</A>&#XA0;&#XA0;Browsing OCaml code with TypeRex</H2><P><B>Note on browsing commands:</B> Each cursor motion incurred by a
+OCaml stdlib.</P><H2 CLASS="section"><A NAME="toc7"></A><A NAME="htoc20">2.2</A>&#XA0;&#XA0;Browsing OCaml code with TypeRex</H2><P><B>Note on browsing commands:</B> Each cursor motion incurred by a
 browsing action (except when clicking on grep results) is undoable
-with the standard Emacs shortcut (C-_).</P><H3 CLASS="subsection"><A NAME="htoc20">2.2.1</A>&#XA0;&#XA0;Grep (C-o g / C-o t g)</H3><P>
+with the standard Emacs shortcut (C-_).</P><H3 CLASS="subsection"><A NAME="htoc21">2.2.1</A>&#XA0;&#XA0;Grep (C-o g / C-o t g)</H3><P>
 (C-o g) display a click-able list (compile minor mode) of the connected
 definitions and occurrences of the identifier under the cursor. Invocation
 is the same as for renaming. Use (C-o t g) to grep the top-level module
-defined by the current file instead of an identifier.</P><H3 CLASS="subsection"><A NAME="htoc21">2.2.2</A>&#XA0;&#XA0;Goto-definition (C-o d)</H3><P>
+defined by the current file instead of an identifier.</P><H3 CLASS="subsection"><A NAME="htoc22">2.2.2</A>&#XA0;&#XA0;Goto-definition (C-o d)</H3><P>
 Places the cursor on the definition of the identifier under the cursor,
-opening the appropriate file in the current window if necessary.</P><H3 CLASS="subsection"><A NAME="htoc22">2.2.3</A>&#XA0;&#XA0;Cycle-definitions (C-o a)</H3><P>
+opening the appropriate file in the current window if necessary.</P><H3 CLASS="subsection"><A NAME="htoc23">2.2.3</A>&#XA0;&#XA0;Cycle-definitions (C-o a)</H3><P>
 Places the cursor on an alternate definition of the identifier declaration
 under the cursor, opening the appropriate file in the current window
 if necessary. The typical effect is to switch between .ml and .mli
 files, but at the right place. This may be used only for top-level
 let-bindings (i.e. &#X2019;let&#X2019; and not &#X2019;let..in&#X2019;, external statements, type
 declarations, exception declarations, and (recursive) module and
-module type declarations</P><H3 CLASS="subsection"><A NAME="htoc23">2.2.4</A>&#XA0;&#XA0;Comment-definition (C-o c)</H3><P>
+module type declarations</P><H3 CLASS="subsection"><A NAME="htoc24">2.2.4</A>&#XA0;&#XA0;Comment-definition (C-o c)</H3><P>
 Display a description of the identifier under the cursor, with its lookup
 path,
 and any comments associated with it (in the sense of OCamldoc).
@@ -170,7 +192,7 @@ the type, for a value or field
 </LI><LI CLASS="li-itemize">the type declaration, for a type constructor
 </LI><LI CLASS="li-itemize">the argument types (or "constant"), for a constructor or exception
 </LI><LI CLASS="li-itemize">the module type, for a module or module type.
-</LI></UL><H2 CLASS="section"><A NAME="toc8"></A><A NAME="htoc24">2.3</A>&#XA0;&#XA0;Refactoring OCaml code with TypeRex</H2><P><B>Note on reverting and undoing:</B> For all refactoring actions, the
+</LI></UL><H2 CLASS="section"><A NAME="toc8"></A><A NAME="htoc25">2.3</A>&#XA0;&#XA0;Refactoring OCaml code with TypeRex</H2><P><B>Note on reverting and undoing:</B> For all refactoring actions, the
 reverting of modified buffers and the undoing take one of the two
 following modes:</P><UL CLASS="itemize"><LI CLASS="li-itemize">
 If the modification is local to the current buffer, then it is
@@ -182,12 +204,12 @@ multiple-file modification is added to a global undo list and can
 only be undone with &#X201C;C-o u&#X201D;. A call to &#X201C;C-o u&#X201D; is also pushed
 onto the local undo lists of all modified buffers for convenience,
 so that (C-_) will also work.
-</LI></UL><H3 CLASS="subsection"><A NAME="htoc25">2.3.1</A>&#XA0;&#XA0;Multiple-file undo (C-o u)</H3><P>
+</LI></UL><H3 CLASS="subsection"><A NAME="htoc26">2.3.1</A>&#XA0;&#XA0;Multiple-file undo (C-o u)</H3><P>
 Undo the last multiple-file modification. Warning! This discards any
 subsequent modification of the affected files (a confirmation is asked
 in this case). All buffers editing one of the affected files are
 reverted, and their local undo lists are cleared (and then receive a
-single new &#X201C;global-undo&#X201D; item).</P><H3 CLASS="subsection"><A NAME="htoc26">2.3.2</A>&#XA0;&#XA0;Renaming (C-o r / C-o t r)</H3><P>
+single new &#X201C;global-undo&#X201D; item).</P><H3 CLASS="subsection"><A NAME="htoc27">2.3.2</A>&#XA0;&#XA0;Renaming (C-o r / C-o t r)</H3><P>
 Rename an identifier through an OCaml program.</P><H5 CLASS="paragraph">(C-o r):</H5><P> The cursor must be placed on an identifier
 definition or reference (for example, a let binding or a pattern).</P><H5 CLASS="paragraph">(C-o t r):</H5><P> Rename the top-level module defined by the
 current file instead of an identifier.<BR>
@@ -216,9 +238,9 @@ Note also the following limitation:
 </P><UL CLASS="itemize"><LI CLASS="li-itemize">
 including a module where an element is renamed with an afterwards masked
 name causes a capture error.
-</LI></UL><H3 CLASS="subsection"><A NAME="htoc27">2.3.3</A>&#XA0;&#XA0;Reference pruning (C-o p)</H3><P>
+</LI></UL><H3 CLASS="subsection"><A NAME="htoc28">2.3.3</A>&#XA0;&#XA0;Reference pruning (C-o p)</H3><P>
 Simplify the identifier references (longidents) by removing unnecessary
-qualification. This operation ranges on the current buffer.</P><H3 CLASS="subsection"><A NAME="htoc28">2.3.4</A>&#XA0;&#XA0;Open elimination (C-o q) (for "qualify")</H3><P>
+qualification. This operation ranges on the current buffer.</P><H3 CLASS="subsection"><A NAME="htoc29">2.3.4</A>&#XA0;&#XA0;Open elimination (C-o q) (for "qualify")</H3><P>
 Remove (if possible) the open statement under the cursor and qualify
 the subsequent references as required. the <CODE>let open .. in</CODE>
 syntax is also supported by open elimination. This operation is
@@ -226,11 +248,11 @@ currently slightly conservative, when the same module is opened again
 inside one of the items in the elimination scope (sub-modules,
 <CODE>let open</CODE>, and <CODE>M.(...)</CODE>) but a duplicate open at the same
 level will be correctly handled.
-</P><H2 CLASS="section"><A NAME="toc9"></A><A NAME="htoc29">2.4</A>&#XA0;&#XA0;Syntax coloring</H2><P>TypeRex implements its own version of syntax coloring. It is not
+</P><H2 CLASS="section"><A NAME="toc9"></A><A NAME="htoc30">2.4</A>&#XA0;&#XA0;Syntax coloring</H2><P>TypeRex implements its own version of syntax coloring. It is not
 yet fully stable, but already has some new features such as the inline
 marking of lexing errors (with help-info) and a smarter treatment of
 unterminated strings and comments.</P><P>Syntax coloring is not specialized for ocamlyacc/ocamllex files, but
-will usually give an acceptable result except for C-style comments.</P><H2 CLASS="section"><A NAME="toc10"></A><A NAME="htoc30">2.5</A>&#XA0;&#XA0;Auto-completion</H2><P>An experimental completion feature is proposed in typerex, currently
+will usually give an acceptable result except for C-style comments.</P><H2 CLASS="section"><A NAME="toc10"></A><A NAME="htoc31">2.5</A>&#XA0;&#XA0;Auto-completion</H2><P>An experimental completion feature is proposed in typerex, currently
 only for identifiers (including methods, tags, labels and type
 variables). Once enabled, a menu of candidates is triggered when
 typing test or with the appropriate key (<CODE>&lt;`&gt;</CODE> by default) which
@@ -241,7 +263,7 @@ Complete Mode user manual).</P><P>The candidates computation takes into account 
 configured for the project, the open and include statements and
 unqualified identifiers until the current position in the edited file (in a
 very approximative and simplistic way) and the module qualification
-possibly prefixing the identifier to be completed.</P><H2 CLASS="section"><A NAME="toc11"></A><A NAME="htoc31">2.6</A>&#XA0;&#XA0;TypeRex assumptions and supported code</H2><H3 CLASS="subsection"><A NAME="htoc32">2.6.1</A>&#XA0;&#XA0;Preprocessors</H3><P>The browsing commands of TypeRex support ocamlyacc/ocamllex sources,
+possibly prefixing the identifier to be completed.</P><H2 CLASS="section"><A NAME="toc11"></A><A NAME="htoc32">2.6</A>&#XA0;&#XA0;TypeRex assumptions and supported code</H2><H3 CLASS="subsection"><A NAME="htoc33">2.6.1</A>&#XA0;&#XA0;Preprocessors</H3><P>The browsing commands of TypeRex support ocamlyacc/ocamllex sources,
 and should work with other pre-processors which generate OCaml source
 files with appropriate line numbers directives.
 More precisely, the identifiers in a pre-processed source file which are
@@ -260,19 +282,19 @@ directives). <CODE>ocp-type</CODE> (or <CODE>ocp-wrapper</CODE>) can generate
 binary annotations with <CODE>camlp4</CODE>, but the result of TypeRex
 commands will sometimes be inaccurate on camlp4-processed sources (in
 particular, renaming should only be attempted for local or unexported
-value bindings).</P><H3 CLASS="subsection"><A NAME="htoc33">2.6.2</A>&#XA0;&#XA0;Module packs</H3><P>Module packing is supported to the extent of its treatment in the
+value bindings).</P><H3 CLASS="subsection"><A NAME="htoc34">2.6.2</A>&#XA0;&#XA0;Module packs</H3><P>Module packing is supported to the extent of its treatment in the
 project description (see above), but is still experimental (and with
 the limitation that &#X201C;goto&#X201D; does not go through packs while &#X201C;grep&#X201D;
-does, as for include directives).</P><H3 CLASS="subsection"><A NAME="htoc34">2.6.3</A>&#XA0;&#XA0;Dealing with outdated binary annotations</H3><P>TypeRex is usually able to overcome sparse changes to the edited
+does, as for include directives).</P><H3 CLASS="subsection"><A NAME="htoc35">2.6.3</A>&#XA0;&#XA0;Dealing with outdated binary annotations</H3><P>TypeRex is usually able to overcome sparse changes to the edited
 files (saved or not) <EM>w.r.t</EM> the last compiled version, and to
 recompute the right positions. This feature relies on the source
 snapshots which are embedded in .cmt files. This works also for
 refactoring commands, but in this case a confirmation will be asked
-before proceeding.</P><H3 CLASS="subsection"><A NAME="htoc35">2.6.4</A>&#XA0;&#XA0;Permissive behavior</H3><P>Some internal errors which could occur while processing some files
+before proceeding.</P><H3 CLASS="subsection"><A NAME="htoc36">2.6.4</A>&#XA0;&#XA0;Permissive behavior</H3><P>Some internal errors which could occur while processing some files
 (for example due to unhandled language features) may be caught and
 reported to the user (asking for a confirmation in the case of
 refactoring). This avoids giving up too soon on errors which are
-clearly harmless to a specific action.</P><H2 CLASS="section"><A NAME="toc12"></A><A NAME="htoc36">2.7</A>&#XA0;&#XA0;Recovery and debugging</H2><P>Except for restarting the server, this section is more intended to
+clearly harmless to a specific action.</P><H2 CLASS="section"><A NAME="toc12"></A><A NAME="htoc37">2.7</A>&#XA0;&#XA0;Recovery and debugging</H2><P>Except for restarting the server, this section is more intended to
 developing and debugging TypeRex.</P><H4 CLASS="subsubsection">Errors and server restart</H4><P>If the OCP server crashes for any reason (or becomes crazy), it is
 possible to restart it using
 

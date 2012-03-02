@@ -27,14 +27,16 @@ all: emacs/typerex.el emacs/typerex.elc
 emacs/typerex.el: \
 	$(LIB_IDE)/emacs/*.el \
 	$(LIB_RPC)/emacs-lisp/ocp-rpc.el \
-	emacs/typerex-config.el emacs/typerex-tuareg.el \
+	emacs/typerex-config.el \
+	emacs/typerex-tuareg.el \
 	emacs/ocp-wizard-plugin.el \
-	$(OCP_WIZARD)/emacs/tokenize.el \
-	$(OCP_WIZARD)/emacs/owz-connection.el \
-	$(OCP_WIZARD)/emacs/completion.el \
+	$(OCP_WIZARD)/emacs/ocp-tokenize.el \
+	$(OCP_WIZARD)/emacs/ocp-connection.el \
+	$(OCP_WIZARD)/emacs/ocp-completion.el \
 	$(OCP_WIZARD)/emacs/ocp-wizard.el
 	cat $^ > $@
 
+#	$(OCP_WIZARD)/emacs/ocp-flymake.el \
 #	emacs/ocp-ide.el \
 
 #	@for tool in ../ocp-*; do \

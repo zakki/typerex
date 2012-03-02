@@ -72,11 +72,13 @@ end) = struct
       | `byte -> Printf.sprintf "%d" n
 
   let goto_char ?unit n = command_unit "goto-char %s" (pos ?unit n)
+  let goto_pos ?unit n = assert false
 
   let point ?(unit=`byte) () =
     match unit with
       | `char -> assert false
       | `byte -> command_int "point-bytes"
+  let line_column_bytes () = assert false
 (*
   let line_number : unit -> int
   let column_number : unit -> int
@@ -99,12 +101,13 @@ end) = struct
 *)
   let find_file fname = command_unit "find-file %s" fname
 
-  let goto ?unit file pos = find_file file ; goto_char ?unit pos
+  let goto ?unit file pos = find_file file ; goto_pos ?unit pos
   let revert_with_history () = assert false
   let revert_buffer_visiting _ = assert false
   let save_buffer_visiting _ = assert false
   let rename_file _ _ = assert false
   let highlight ?unit face b e = () (* Stub *)
+  let highlight_regions ?unit ?forever:bool rs = assert false
 (*
   let highlight_regions :
     ?unit:[ `byte | `char ] -> ?forever:bool -> (Face.face * int * int) list -> unit

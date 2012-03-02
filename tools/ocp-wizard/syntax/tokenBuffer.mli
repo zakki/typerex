@@ -62,6 +62,9 @@ end
 
 module Make : functor (Token : TOKEN) -> sig
 
+  (* 3.11 compatibility *)
+  module type T = sig
+
   (** A tokenized buffer contains a char buffer, which should never be
       changed directly, plus a corresponding buffer of tokens, which
       is aligned with the character buffer. *)
@@ -120,4 +123,18 @@ module Make : functor (Token : TOKEN) -> sig
   val replace :
     tokenized_buffer -> int -> string -> int * int * Token.token array
 
+  (* 3.11 compatibility *)
+  end
+  include T
+
 end
+
+
+
+
+
+
+
+
+
+

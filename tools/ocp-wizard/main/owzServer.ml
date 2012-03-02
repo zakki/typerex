@@ -24,7 +24,7 @@ let profile = ref None
 
 exception Invalid_command
 
-type command = 
+type command =
   | Rename of bool
   | Grep of bool
   | GotoDefinition
@@ -39,6 +39,7 @@ type command =
   | Complete of string * int (* buffer name, byte pos from 0 *)
   | CompletionDoc of string * string
   | PreCacheBuffer of string
+  | Config
 
 open IDE
 
@@ -104,10 +105,10 @@ module MakePlugin (L : Lang) = struct
 
   let make_emacs_plugin filename =
     ignore (register_commands ());
-    let open L in
         let code_of_keymap =
           Emacs.code_of_keymap_aux ~name:"ocp-wizard-plugin" ~add_hook:false in
-        save ~lang ~code_of_command ~code_of_keymap ~filename
+        IDE.save
+          ~lang:L.lang ~code_of_command:L.code_of_command ~code_of_keymap ~filename
 
 end
 
@@ -145,7 +146,17 @@ let commands =
       | [buffername] -> PreCacheBuffer buffername
       | _ -> raise Invalid_command);
 
+    "version", (function
+      | [] -> Config
+      | _ -> raise Invalid_command);
+
   ]
+
+(* Emacs-specific; we'll generalize this soon *)
+let config_info =
+  Printf.sprintf
+    "((version . %S) (ocamllib . %S))"
+    Typerex_config.typerex_version Config.standard_library
 
 module OwzSocketServer
   (SocketCallback : IDE_Callback.SocketCallback) = struct
@@ -157,31 +168,29 @@ module OwzSocketServer
             end)
       in
       let module UI = OwzUI.Make(IDE) in
-      let open UI in
+  (*      let open UI in *)
       match command with
-        | Rename toplevel -> rename toplevel ; "OK"
-        | Grep toplevel -> grep toplevel ; "OK"
-        | GotoDefinition -> goto_definition () ; "OK"
-        | CommentDefinition -> comment_definition () ; "OK"
-        | CycleDefinitions -> cycle_definitions () ; "OK"
-        | PruneLids -> prune_lids () ; "OK"
-        | EliminateOpen -> eliminate_open () ; "OK"
-        | Undo -> undo_last () ; "OK"
-        | Callback -> callback_test () ; "OK"
+        | Rename toplevel -> UI.rename toplevel ; "OK"
+        | Grep toplevel -> UI.grep toplevel ; "OK"
+        | GotoDefinition -> UI.goto_definition () ; "OK"
+        | CommentDefinition -> UI.comment_definition () ; "OK"
+        | CycleDefinitions -> UI.cycle_definitions () ; "OK"
+        | PruneLids -> UI.prune_lids () ; "OK"
+        | EliminateOpen -> UI.eliminate_open () ; "OK"
+        | Undo -> UI.undo_last () ; "OK"
+        | Callback -> UI.callback_test () ; "OK"
         | ModifyBuffer
             (buffername, filename, start, end_p, old_length, first_time) ->
           OwzUI.modify ~buffername ~filename ~first_time ~start ~old_length data;
           "OK"
-        | FontifyBuffer (buffername) -> colorize buffername
-        | Complete (buffername, pos) -> completion buffername pos
+        | FontifyBuffer (buffername) -> UI.colorize buffername
+        | Complete (buffername, pos) -> UI.completion buffername pos
         | CompletionDoc (buffername, candidate) ->
           OwzUI.last_completion_doc buffername ~candidate
         | PreCacheBuffer buffername ->
           background := Some (function () -> OwzUI.pre_cache_buffer buffername);
-(*
-          OwzUI.pre_cache_buffer buffername;
-*)
           "OK"
+        | Config -> config_info
 
 class owzConnection ic oc = object (self)
   inherit Ocp_rpc.tagged_connection ic oc
@@ -219,7 +228,7 @@ class owzConnection ic oc = object (self)
             (Filename.concat (Sys.getenv "HOME") profile_file)
             ();
       )
-  method between_requests = 
+  method between_requests =
     match !background with
       | Some command ->
         (try command () with _ -> ());
@@ -227,16 +236,18 @@ class owzConnection ic oc = object (self)
       | None -> ()
 end
 
+open Unix
+
 let start_server ic oc =
-  let open Unix in
-  let t = localtime (time ()) in
+(*  let open Unix in *)
+  let t = Unix.localtime (Unix.time ()) in
   debugln
     "\n**************************************\n\
          OCP Wizard server started at %d:%d:%d.\n\
          **************************************\n"
     t.tm_hour t.tm_min t.tm_sec;
   at_exit (function () ->
-    let t' = localtime (time ()) in
+    let t' = Unix.localtime (Unix.time ()) in
     debugln
       "\n*************************************\n\
          OCP Wizard server stoped at %d:%d:%d.\n\

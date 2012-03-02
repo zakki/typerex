@@ -53,7 +53,19 @@ Any \verb!-pp! option appearing in the command line is transformed as
 follows when passed to \verb!ocp-type!:
 \begin{itemize}
 \item if the pre-processor command is (a variant of) \verb!camlp4!,
+  and unless option \verb!-no-wrap-camlp4! is passed to \verb!ocp-wrapper!,
   then the option \verb!-printer Camlp4AstDumper! is added, which
   yields more accurate location information,
 \item otherwise, the command is left unchanged.
 \end{itemize}
+
+\subsubsection*{Libraries and Module Packs}
+
+\verb!ocp-wrapper! accepts the special forms
+{\verbsize\begin{verbatim}
+    ocp-wrapper -save-types <compiler> -a <units> -o <target>
+    ocp-wrapper -save-types <compiler> -pack <units> -o <target>
+\end{verbatim}}
+Arguments and targets ending in \verb!cmx! are converted into \verb!cmo!
+and targets into \verb!cmt! as appropriate (see the documentation for
+\verb!ocp-type!).

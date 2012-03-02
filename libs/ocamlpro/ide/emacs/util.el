@@ -43,6 +43,17 @@
 (defun check-byte (pos)
   (min (position-bytes (point-max)) (max (position-bytes (point-min)) pos)))
 
+(defun line-column-bytes ()
+  (let ((l (line-number-at-pos))
+        (c (- (position-bytes (point))
+              (position-bytes (line-beginning-position)))))
+    (format "%d %d" l c)))
+
+(defun line-column-to-pos (l c)
+  (save-excursion
+    (goto-char (point-min))
+    (byte-to-position (+ (position-bytes (line-beginning-position l)) c))))
+
 (defun highlight-overlay (face start end)
   "put an overlay on the given range, in the current buffer"
   (let ((overlay (make-overlay (check-position start) (check-position end))))
@@ -118,7 +129,6 @@ buffer to display the question if it is too long."
 
 (defun propertize-regions (regions)
   (mapc 'set-text-properties-region regions)
-;  (message "propertize-regions done")
   nil)
 
 (defun propertize-region-list (regions)
@@ -142,22 +152,11 @@ buffer to display the question if it is too long."
 
 (defun propertize-region-lists-char (regions)
   (mapc 'propertize-region-list regions)
-;  (message "propertize-region-lists done")
   nil)
 
 (defun propertize-region-lists-byte (regions)
   (mapc 'propertize-region-list-byte regions)
-;  (message "propertize-region-lists done")
   nil)
-
-;(highlight 'typerex-font-lock-governing-face 2500 2600)
-;(highlight typerex-font-lock-governing-face 2500 2600)
-;(highlight overlay-def 2500 2600)
-;(add-text-properties 2159 2170 `(comment t face highlight))
-;(highlight-regions nil `((,overlay-def 1600 1610) (,overlay-ref 1700 1710)))
-;(propertize-regions `((1 3 (face ,overlay-def)) (5 9 (face ,overlay-ref))))
-;(propertize-region-list `( (face ,overlay-def) ((1 3)) ))
-;(propertize-region-lists `(((face ,overlay-def) ((1 3)))))
 
 (defun get-buffer-create-clear (name)
   "return a buffer with the given name, clearing it if necessary"
@@ -229,25 +228,15 @@ buffer to display the question if it is too long."
 (defun revert-with-history ()
   "revert the current buffer while keeping its history"
   (let ((pos (point)))
-;    (setq buffer-bytes 0)
     (save-excursion
-;	  (setq scroll (window-vscroll))
-;	  (setq auto-window-vscroll nil)
+;;	  (setq scroll (window-vscroll))
+;;	  (setq auto-window-vscroll nil)
       (clear-visited-file-modtime)
       (widen)
-; tell ocp-wizard to re-fontify the whole buffer
-;;      (combine-after-change-calls
-;;        (atomic-change-group
       (setq inhibit-modification-hooks t)
        (delete-region (point-min) (point-max))
-;	  (erase-buffer)
        (setq inhibit-modification-hooks nil)
        (insert-file-contents (buffer-file-name))
-;      (message "fontifying")
-;      (typerex-fontify-changed-region 0 0))
-;      (message "fontified")
-;	(set-window-vscroll nil scroll)
-       ; Problem: if we undo and then redo, emacs forgets the goto.
       )
     (goto-char pos)
     (set-buffer-modified-p nil)
@@ -259,8 +248,8 @@ buffer to display the question if it is too long."
   (let ((buffer (find-buffer-visiting filename)))
     (unless (eq buffer nil)
       (with-current-buffer buffer
-; workaround for the duplicate insertion bug
-;        (revert-buffer t t t))
+;; workaround for the duplicate insertion bug
+;;        (revert-buffer t t t))
         (revert-with-history)
         (setq buffer-undo-list nil)
         (push '(apply ocp-undo) buffer-undo-list)
@@ -279,8 +268,8 @@ buffer to display the question if it is too long."
     (unless (eq buffer nil)
       (with-current-buffer buffer
         (set-visited-file-name new-filename t t)
-; workaround for the duplicate insertion bug
-;        (revert-buffer t t t))
+;; workaround for the duplicate insertion bug
+;;       (revert-buffer t t t))
         (revert-with-history)
         (setq buffer-undo-list nil)
         (push '(apply ocp-undo) buffer-undo-list)

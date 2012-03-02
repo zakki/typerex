@@ -22,12 +22,15 @@ type property = [
 | `font_lock_multiline
 ]
 
+type pos = [ `cnum of int | `lc of int * int ]
+
 module type Callback = sig
 (*
   val goto_char : ?unit:[ `byte | `char ] -> int -> unit
 *)
   val buffer_file_name : unit -> string
   val point : ?unit:[ `byte | `char ] -> unit -> int
+  val line_column_bytes : unit -> int * int
 (*
   val line_number : unit -> int
   val column_number : unit -> int
@@ -44,15 +47,15 @@ module type Callback = sig
   val find_file : string -> unit
   val set_cleared_buffer : ('a, unit, string, unit) format4 -> 'a
 *)
-  val goto : ?unit:[ `byte | `char ] -> string -> int -> unit
+  val goto : ?unit:[ `byte | `char ] -> string -> pos -> unit
   val revert_with_history : unit -> unit
   val revert_buffer_visiting : string -> unit
   val save_buffer_visiting : string -> unit
   val rename_file : string -> string -> unit
-  val highlight : ?unit:[ `byte | `char ] -> Face.face -> int -> int -> unit
-(*
   val highlight_regions :
-    ?unit:[ `byte | `char ] -> ?forever:bool -> (Face.face * int * int) list -> unit
+    ?unit:[ `byte | `char ] -> ?forever:bool -> (Face.face * pos * pos) list -> unit
+(*
+  val highlight : ?unit:[ `byte | `char ] -> Face.face -> int -> int -> unit
   val propertize_regions :
     ?unit:[ `byte | `char ] -> (int * int * property list) list -> unit
   val propertize_region_lists :
@@ -73,8 +76,8 @@ module type Callback = sig
   val present_grep_results :
     root:string ->
     contents:string ->
-    (Face.face * int * int) list ->
-    local_overlays:(Face.face * int * int) list ->
+    (Face.face * pos * pos) list ->
+    local_overlays:(Face.face * pos * pos) list ->
     errors:string option -> unit
 (*
   val show_completions : int -> string list -> unit

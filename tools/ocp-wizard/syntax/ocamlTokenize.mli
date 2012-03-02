@@ -35,7 +35,11 @@ val length : token -> int
 module OCamlToken : TokenBuffer.TOKEN
   with type token = token
 
+(* 3.11 compatibility *)
+module OCamlTokenBuffer : TokenBuffer.Make(OCamlToken).T
+(*
 module OCamlTokenBuffer : module type of TokenBuffer.Make(OCamlToken)
+*)
 
 val empty : unit -> OCamlTokenBuffer.tokenized_buffer
 val reset : OCamlTokenBuffer.tokenized_buffer -> unit

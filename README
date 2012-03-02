@@ -1,8 +1,11 @@
 Requirements
 ============
 
-* Linux (32-bit or 64-bit)
+* Linux (32-bit or 64-bit) or MacOS (tested with 10.6.8)
 * OCaml >= 3.11.2
+* Emacs (Tested with 23.2.1, does not work under X-Emacs, reported
+  to work with Aquamacs but with performance issues)
+* Gnu diff, present in PATH
 
 Install
 =======
@@ -11,6 +14,8 @@ Install
 
 Usefull options (examples):
   --bindir=/opt/typerex
+  --disable-version-check
+      do not check OCaml version (allows, e.g., ocaml-3.12.1-rc1)
   --with-lispdir=~/.emacs.d
       default is a system-wide installation path
   --with-ocp-build=<command>
@@ -33,14 +38,3 @@ Uninstall
 To remove installed binaries and libraries:
 
 - sudo make uninstall
-
-Generating .cmt(i) files for TypeRex sources
-============================================
-
-Unless you already compiled TypeRex a first time, here is how to
-generate .cmt(i) files for TypeRex itself:
-
-1:  ./configure   (without '--enable-cmt')
-2:  make
-3:  ./configure --enable-cmt
-4:  make

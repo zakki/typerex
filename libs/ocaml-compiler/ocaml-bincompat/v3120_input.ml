@@ -159,7 +159,7 @@ end = struct
     *)
         | _ ->   expression_desc e.T.pexp_desc
     in
-    { pexp_desc; pexp_loc = e.T.pexp_loc  }
+    { pexp_desc = pexp_desc; pexp_loc = e.T.pexp_loc  }
 
   and expression_desc e =
     match e with
@@ -220,7 +220,15 @@ end = struct
       | T.Pexp_poly (e, o) -> Pexp_poly (expression e, option core_type o)
       | T.Pexp_object cl -> Pexp_object (class_structure cl)
       | T.Pexp_newtype (s, e) -> Pexp_newtype (s, expression e)
-      | T.Pexp_pack (m, p) -> assert false
+      | T.Pexp_pack (m, p) ->
+        Pexp_constraint (
+          { pexp_desc = Pexp_pack (module_expr m);
+            pexp_loc = m.T.pmod_loc},
+          Some {
+            ptyp_desc = Ptyp_package (package_type p);
+            ptyp_loc = Location.none},
+          None
+        )
       | T.Pexp_open (l, e) -> Pexp_open (mknoloc l, expression e)
 
   and value_description v =
@@ -285,7 +293,7 @@ end = struct
       | T.Pctf_cstr (c1, c2, l) ->
         Pctf_cstr (core_type c1, core_type c2), l
     in
-    { pctf_desc ; pctf_loc }
+    { pctf_desc = pctf_desc; pctf_loc = pctf_loc }
 
 and class_description c = class_infos class_type c
 
@@ -337,7 +345,7 @@ and class_field c =
             (pattern pat, expression e)) list), loc
   | T.Pcf_init e -> Pcf_init (expression e), Location.none
   in
-  { pcf_desc; pcf_loc }
+  { pcf_desc = pcf_desc; pcf_loc = pcf_loc }
 
 and class_declaration list = class_infos class_expr list
 
@@ -408,7 +416,7 @@ and module_expr me =
               ))
           pmod_loc) *)
     | me ->  module_expr_desc me in
-  { pmod_desc; pmod_loc }
+  { pmod_desc = pmod_desc; pmod_loc = pmod_loc }
 
 and module_expr_desc me =
   match me with
@@ -418,7 +426,18 @@ and module_expr_desc me =
       Pmod_functor (mknoloc s, module_type mt, module_expr me)
   | T.Pmod_apply (me1, me2) -> Pmod_apply (module_expr me1, module_expr me2)
   | T.Pmod_constraint (me, mt) -> Pmod_constraint (module_expr me, module_type mt)
-  | T.Pmod_unpack (e, p) -> assert false
+  | T.Pmod_unpack (e, p) ->
+    Pmod_unpack {
+      pexp_loc = e.T.pexp_loc;
+      pexp_desc =
+        Pexp_constraint
+          (expression e,
+           Some {
+             ptyp_loc = Location.none;
+             ptyp_desc = (Ptyp_package (package_type p))
+           },
+           None)
+    }
 
 and structure list = List.map structure_item list
 
@@ -859,7 +878,8 @@ let input_cmi ic =
   let cmi_sign = TYPES.signature cmi_sign in
   let cmi_crcs = (input_value ic : (string * Digest.t) list) in
   let cmi_flags = (input_value ic : V3120_types.Env.pers_flags list) in
-  { Env.cmi_name ; cmi_sign; cmi_crcs; cmi_flags }
+  { Env.cmi_name = cmi_name ; cmi_sign = cmi_sign;
+    cmi_crcs = cmi_crcs; cmi_flags = cmi_flags }
 
 let input_ast_intf ic =
   let input_name = (input_value ic : string) in

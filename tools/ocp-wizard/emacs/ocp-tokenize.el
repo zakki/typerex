@@ -15,64 +15,73 @@
 ;                                                                        ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Tokenization and Font-lock with ocp-wizard
+;; Tokenization and Font-lock with ocp-wizard
 
-; This file registers hooks to let ocp-wizard know about the current
-; buffer contents, enabling completion and a fontification.
+;; This file registers hooks to let ocp-wizard know about the current
+;; buffer contents, enabling completion and a fontification.
 
-(defcustom ocp-syntax-coloring t
-  "If true, use new TypeRex coloring rather than old tuareg mode"
-  :group 'ocp :type '(boolean))
-
-(defcustom ocp-theme nil "coloring theme (one of tuareg_like, syntactic)"
+(defcustom ocp-theme nil
+  "coloring theme (one of syntactic, tuareg_like, and tuareg).
+  - syntactic uses the new OCP Faces
+  - tuareg_like and tuareg uses the TypeRex Face, which are the Tuareg
+  tuareg_like is a full re-implementation of Tuareg coloring, with not
+  exactly the same bugs. tuareg is the unchanged tuareg implementation."
   :group 'ocp :type '(string))
 
 (defcustom ocp-auto-complete nil
   "If true, enable TypeRex auto-completion"
   :group 'ocp :type '(boolean))
 
-; If buffer-bytes = 0, then next update will (re)set the buffer
-; contents on the server.
-(defvar buffer-bytes 0 "length as known to ocp-wizard")
-(make-variable-buffer-local 'buffer-bytes)
+(defcustom ocp-pre-cache t
+  "If true, pre-cache the cmt to prevent pausing at first
+completion. We use a counter to avoid the deadlocks that used to
+happen when either:
+ - Emacs is started on several files simultaneously
+ - User begins typing during Emacs startup."
+  :group 'ocp :type '(boolean))
 
-; If start <= end then this region has been modified
-(defvar buffer-modified-start 1)
-(make-variable-buffer-local 'buffer-modified-start)
-(defvar buffer-modified-end 1)
-(make-variable-buffer-local 'buffer-modified-end)
+;; If ocp-buffer-bytes = 0, then next update will (re)set the buffer
+;; contents on the server.
+(defvar ocp-buffer-bytes 0 "length as known to ocp-wizard")
+(make-variable-buffer-local 'ocp-buffer-bytes)
 
-(defun update-modified (begin end &optional old-len)
+;; If start <= end then this region has been modified
+(defvar ocp-buffer-modified-start 1)
+(make-variable-buffer-local 'ocp-buffer-modified-start)
+(defvar ocp-buffer-modified-end 1)
+(make-variable-buffer-local 'ocp-buffer-modified-end)
+
+(defun ocp-update-modified (begin end &optional old-len)
   "Enlarge the recorded modified region according to the given
 parameters. This function is set as an after-change hook, as well
 as a find-file-hook (with point-min and point-max as parameters)."
-(unless (eq buffer-bytes 0)
+(unless (eq ocp-buffer-bytes 0)
   (if (eq old-len nil) (setq old-len 0))
-;  (message "update-modified [%d, %d[ (old-len=%d)" begin end old-len)
-  (if (<= buffer-modified-start buffer-modified-end)
+;;  (message "ocp-update-modified [%d, %d[ (old-len=%d)" begin end old-len)
+  (if (<= ocp-buffer-modified-start ocp-buffer-modified-end)
       (progn
-        (setq buffer-modified-start (min buffer-modified-start begin))
-        (setq buffer-modified-end
+        (setq ocp-buffer-modified-start (min ocp-buffer-modified-start begin))
+        (setq ocp-buffer-modified-end
               (max end
-                   (if (<= begin buffer-modified-end)
+                   (if (<= begin ocp-buffer-modified-end)
                        (let ((growth (- (- end begin) old-len)))
-                         (+ buffer-modified-end growth))
-                     buffer-modified-end))))
-    (setq buffer-modified-start begin)
-    (setq buffer-modified-end end)
+                         (+ ocp-buffer-modified-end growth))
+                     ocp-buffer-modified-end))))
+    (setq ocp-buffer-modified-start begin)
+    (setq ocp-buffer-modified-end end)
     ;; See auto-completion
     (if (fboundp 'discard-completion-data) (discard-completion-data)))
-;  (message "-> [%d, %d["  buffer-modified-start  buffer-modified-end)
+;;  (message "-> [%d, %d["  ocp-buffer-modified-start  ocp-buffer-modified-end)
   ))
 
 (defun reset-tokenization ()
   "Ensure that the next change committed to the server
 will (re-)load the whole buffer"
-  (setq buffer-bytes 0))
+  (setq ocp-buffer-bytes 0))
 
-; We use this hack to get the absolute filename before the
-; buffer-local variable has been initialized (when fontifying for the
-; first time).
+;; We use this hack to get the absolute filename before the
+;; buffer-local variable has been initialized (when fontifying for the
+;; first time).
 (defun filename-of-buffer-name (buffer-name directory)
   "Try to get the absolute filename for a buffer name and directory name"
   (let* ((len (length buffer-name))
@@ -84,23 +93,25 @@ will (re-)load the whole buffer"
             buffer-name)))
     (expand-file-name filename directory)))
 
-(defun is-ocaml-buffer ()
-  (let* ((filename (filename-of-buffer-name (buffer-name) default-directory))
-         (len (length filename)))
-    (and (> len 4)
-         (or
-          (string= (substring filename (- len 3)) ".ml")
-          (string= (substring filename (- len 4)) ".mli")
-          (string= (substring filename (- len 4)) ".mll")
-          (string= (substring filename (- len 4)) ".mly")))))
+;; (defcustom typerex-extension-list '("ml" "mli" "mll" "mly")
+;;   "File extensions which enable TypeRex"
+;;   :group 'ocp)
 
-(defun modify-region
+;; (defun is-ocaml-buffer ()
+;;   (let* ((filename (filename-of-buffer-name (buffer-name) default-directory))
+;;          (len (length filename)))
+;;     (member (file-name-extension filename) typerex-extension-list)))
+
+(defun is-ocaml-buffer ()
+  (not (string= (buffer-name) typerex-interactive-buffer-name)))
+
+(defun ocp-modify-region
   (start end start-bytes end-bytes old-length-bytes first-time)
   "Commit a region modification to the server, and return the
 string result, which is either the fontification command, or
 OK. All positions count from 1."
-;  (message "modify-region [%d, %d[, old=%d, first-time=%s"
-;           start-bytes end-bytes old-length-bytes first-time)
+;;  (message "ocp-modify-region [%d, %d[, old=%d, first-time=%s"
+;;           start-bytes end-bytes old-length-bytes first-time)
   (let* ((filename (filename-of-buffer-name (buffer-name) default-directory))
          (time-before (float-time)))
     (owz-string-command
@@ -114,76 +125,78 @@ OK. All positions count from 1."
              "\n"
              (buffer-substring start end)))))
 
-(defun try-once-modify-changed-region ()
+(defun ocp-try-once-modify-changed-region ()
   "Commit the currently changed region (and set the state to
 unchanged)."
-;  (message "typerex-fontify-changed-region")
-  (if (eq buffer-bytes 0)
+;;  (message "typerex-fontify-changed-region")
+  (if (eq ocp-buffer-bytes 0)
       (progn
-        (setq buffer-modified-start (point-min))
-        (setq buffer-modified-end (point-max))))
+        (setq ocp-buffer-modified-start (point-min))
+        (setq ocp-buffer-modified-end (point-max))))
   (let* ((last-pos (+ (buffer-size) 1))
          (last-pos-bytes (position-bytes last-pos))
-         (new-buffer-bytes (- last-pos-bytes 1))
-         (growth-bytes (- new-buffer-bytes buffer-bytes))
-         (first-time (eq buffer-bytes 0)))
-;  (message "modified-start=%d, modified-end=%d" buffer-modified-start buffer-modified-end)
-    (if (<= buffer-modified-start buffer-modified-end)
+         (new-ocp-buffer-bytes (- last-pos-bytes 1))
+         (growth-bytes (- new-ocp-buffer-bytes ocp-buffer-bytes))
+         (first-time (eq ocp-buffer-bytes 0)))
+;;  (message "modified-start=%d, modified-end=%d" ocp-buffer-modified-start ocp-buffer-modified-end)
+    (if (<= ocp-buffer-modified-start ocp-buffer-modified-end)
         (let*
-            ((begin-bytes (position-bytes buffer-modified-start))
-             (end-bytes (position-bytes buffer-modified-end))
+            ((begin-bytes (position-bytes ocp-buffer-modified-start))
+             (end-bytes (position-bytes ocp-buffer-modified-end))
              (old-length-bytes (- (- end-bytes begin-bytes) growth-bytes)))
-          (setq buffer-bytes new-buffer-bytes)
+          (setq ocp-buffer-bytes new-ocp-buffer-bytes)
           (let ((res
-                 (modify-region
-                  buffer-modified-start buffer-modified-end
+                 (ocp-modify-region
+                  ocp-buffer-modified-start ocp-buffer-modified-end
                   begin-bytes end-bytes old-length-bytes first-time)))
-            (setq buffer-modified-start last-pos)
-            (setq buffer-modified-end 1)
+            (setq ocp-buffer-modified-start last-pos)
+            (setq ocp-buffer-modified-end 1)
             res))
       nil)))
 
-(defun modify-changed-region ()
-  "Same as try-once-modify-change-region, but in case of error,
+(defun ocp-modify-changed-region ()
+  "Same as ocp-try-once-modify-change-region, but in case of error,
 try to reset tokenization. Actual arguments are ignored; the
-modifications are tracked explicitely thanks to update-modified."
+modifications are tracked explicitely thanks to ocp-update-modified."
   (condition-case e
-      (try-once-modify-changed-region)
+      (ocp-try-once-modify-changed-region)
     (error
      (progn
        (message "Error during tokenization: %s" e)
        (message "Trying to reset tokenization")
        (reset-tokenization)
        (condition-case e
-           (try-once-modify-changed-region)
+           (ocp-try-once-modify-changed-region)
          (error
           (message "Error again: %s\nAbort" e)
           nil))))))
 
 (defun typerex-fontify-changed-region (begin end &optional verbose)
   "Commit any pending modifications and re-fontify the modified part"
-  (modify-changed-region)
-;        (let ((compute-time (- (float-time) time-before)))
-;          (if (> compute-time 0.01)
-;              (message "fontification computed in %f seconds" compute-time)))
+  (ocp-modify-changed-region)
   (let ((command
          (owz-string-command
           (concat "fontify-buffer " (buffer-name)))))
-;      (message "fontification command: %s" command)
     (condition-case e
         (eval (read command))
-;        (let ((fontification-time (- (float-time) time-before)))
-;          (if (> fontification-time 0.01)
-;              (message "fontifying done in %f seconds" fontification-time)))
       (error (message "Error during fontification: %s" e)))))
 
-(defun modify-only-changed-region (begin end &optional verbose)
-  "Commit any pending modifications"
-  (modify-changed-region))
-
-(defun pre-cache-buffer ()
-  (message "Pre-caching program data...")
-  (owz-string-command (concat "pre-cache-buffer " (buffer-name))))
+;; This is a nice trick which prevents long pauses, but if we didn't
+;; check for pending commands, it would crash Emacs (deadlock) if either:
+;; - Emacs is started on several files simultaneously
+;; - User begins typing during Emacs startup.
+(defun ocp-pre-cache-buffer (buffer)
+  (run-with-idle-timer
+   0 nil
+   (lambda (buffer)
+     (if (eq ocp-pending-commands 0)
+         (progn
+           (owz-string-command (concat "pre-cache-buffer " buffer))
+           )
+       (message "delaying pre-cache for %s" buffer)
+       (ocp-pre-cache-buffer buffer)
+       ))
+   buffer))
 
 ;; Install modification hooks and font-lock function
 (add-hook
@@ -193,10 +206,11 @@ modifications are tracked explicitely thanks to update-modified."
        (progn
          ;; If either coloring or completion are enabled, then track
          ;; modifications in each TypeRex-enabled buffer.
-         (if (or ocp-syntax-coloring ocp-auto-complete)
+         (if (or (and ocp-syntax-coloring (not (string= ocp-theme "tuareg")))
+                 ocp-auto-complete)
              (progn
                ;; Record each modification
-               (add-hook 'after-change-functions 'update-modified nil t)
+               (add-hook 'after-change-functions 'ocp-update-modified nil t)
                ;; Reset fontification when visiting a file, since it may be
                ;; a C-x C-w and change the buffer name
                (add-hook 'find-file-hook 'reset-tokenization nil t)))
@@ -204,16 +218,18 @@ modifications are tracked explicitely thanks to update-modified."
          ;; typerex-fontify-changed-region, which we register by redefining
          ;; typerex-install-font-lock.
          (make-local-variable 'font-lock-fontify-region-function)
-         (if ocp-syntax-coloring
+         (if (and ocp-syntax-coloring (not (string= ocp-theme "tuareg")))
              (setq font-lock-fontify-region-function
                    'typerex-fontify-changed-region))
-         ;; If auto-completion is enabled), modifications
-         ;; are also commited after each change (this hook is appended).
-;         (if ocp-auto-complete
-;             (add-hook 'after-change-functions 'modify-only-changed-region t t))
-         (if ocp-auto-complete
+         ;; If auto-completion is enabled, modifications are also
+         ;; commited when completion is invoked (see
+         ;; ocp-get-completion-data)
+
+         ;; If auto-completion is enabled, we pre-load the cmt to give
+         ;; a smoother impression.
+         (if (and ocp-auto-complete ocp-pre-cache)
              (add-hook
               'find-file-hook
-              (lambda () (run-with-idle-timer 0 nil 'pre-cache-buffer))
+              (lambda () (ocp-pre-cache-buffer (buffer-name)))
               t t))
          ))))

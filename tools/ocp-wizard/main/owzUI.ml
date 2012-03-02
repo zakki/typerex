@@ -15,6 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Typedtree
 open OcpLang
 open Util
 open OcpWizard
@@ -30,8 +31,9 @@ let fix_case kind name =
         begin    let name =
       if
         kind = Env_untyped.Module &&
-        (String.ends_with name ~suffix:".ml" ||
-         String.ends_with name ~suffix:".mli")
+        List.exists
+          (Filename.check_suffix name)
+          (SimpleProgram.ocaml_source_extensions ())
       then
         Filename.chop_extension name
       else
@@ -87,25 +89,25 @@ let file_renames ?(for_grep=false) ?prefix program fnames =
   List.concat
     (List.map
        (function f ->
-	 let open Program in
-	     match find_unit program f with
-	       | Concrete unit ->
+(*	 let open Program in *)
+	     match Program.find_unit program f with
+	       | Program.Concrete unit ->
 	         let l =
-	           match unit.interface with
-		     | Some i -> [source ?prefix program i]
+	           match unit.Program.interface with
+		     | Some i -> [Program.source ?prefix program i]
 		     | None -> [] in
-	         (match unit.implementation with
+	         (match unit.Program.implementation with
 	           | Some i
                    (* We check if implem and interf have the same source (.mly) *)
-		       when not (List.mem (source ?prefix program i) l) ->
-		     source ?prefix program i :: l
+		       when not (List.mem (Program.source ?prefix program i) l) ->
+		     Program.source ?prefix program i :: l
 	           | _ -> l)
-	       | Abstract unit ->
-                 if for_grep then [abstract_signature ?prefix program unit]
+	       | Program.Abstract unit ->
+                 if for_grep then [Program.abstract_signature ?prefix program unit]
                  else fail_owz "cannot rename abstract module %s" f
-	       | Pack unit ->
-                 match unit.p_interface with
-		   | Some i -> [source ?prefix program i]
+	       | Program.Pack unit ->
+                 match unit.Program.p_interface with
+		   | Some i -> [Program.source ?prefix program i]
 		   | None -> [])
        fnames)
 
@@ -176,8 +178,12 @@ let perform_edit program name edits renames =
     | [file, edits], [] -> Edit.edit edits file
     | _ -> Edit.edit_files (undo_stack program) name edits renames
 
+let singleton = function
+  | `lc (l, c) -> `lc ((l, c), (l, c + 1))
+  | `cnum cnum -> `cnum (cnum, cnum + 1)
+
 let goto_definition program source_id pos =
-    let loc = (pos, pos+1) in
+    let loc = singleton pos in
     let kind, gid, _, _ =
       try locate_ident_from_def_or_use program source_id loc
       with
@@ -210,7 +216,7 @@ let find_other name loc locs =
     | first :: _ as locs -> find_other ~first loc locs
 
 let cycle_definitions program source loc =
-  let loc = (loc, loc+1) in
+  let loc = singleton loc in
   let kind, id, loc =
     try visible_ident_definition `innermost source loc program
     with Not_found -> fail_owz "No ident found here"
@@ -224,7 +230,7 @@ let cycle_definitions program source loc =
 let comment_definition program source_id loc =
     let source_file = Program.find_source program source_id in
     let _env = ProgramCache.source_env program source_file in
-    let loc = (loc, loc+1) in
+    let loc = singleton loc in
     let kind, id, desc, def_ref =
       try locate_ident_from_def_or_use program source_id loc
       with Not_found -> fail_owz "No ident found here"
@@ -273,7 +279,7 @@ let bprint_grep_result program kind id (idents, fnames, occs) errors =
               min (count  + String.length line)
                 (count - n + loc.loc_end.pos_cnum - loc.loc_start.pos_bol)
             in
-            rev_overlays := (face, start, endp) :: !rev_overlays;
+            rev_overlays := (face, `cnum start, `cnum endp) :: !rev_overlays;
 	    Printf.bprintf oc "%s\n" line)
 	  locs)
       occs
@@ -340,7 +346,7 @@ let colorize buffer_name =
   let buffer = OcamlBuffer.find_or_create buffer_name in
     match buffer.OcamlBuffer.needs_refontifying with
       | Some (start, end_) ->
-        let {OcamlTokenize.OCamlTokenBuffer.chars} = buffer.OcamlBuffer.contents in
+        let {OcamlTokenize.OCamlTokenBuffer.chars = chars} = buffer.OcamlBuffer.contents in
         let start_p = GapBuffer.mark2pos chars start
         and end_p = GapBuffer.mark2pos chars end_ in
         GapBuffer.delete_mark chars start;
@@ -351,15 +357,15 @@ let colorize buffer_name =
       | None -> (0, 0), [], []
 
 let completion buffername pos =
-  let open OcamlBuffer in
+(*  let open OcamlBuffer in *)
   let prefix, candidates =
     try
-      let buffer = Hashtbl.find buffers buffername in
-      let program, source_id = Lazy.force buffer.program in
+      let buffer = Hashtbl.find OcamlBuffer.buffers buffername in
+      let program, source_id = Lazy.force buffer.OcamlBuffer.program in
       let prefix, candidates =
         Completion.completions
-          program source_id buffer.contents buffer.local_envs pos in
-      buffer.last_completion <- candidates;
+          program source_id buffer.OcamlBuffer.contents buffer.OcamlBuffer.local_envs pos in
+      buffer.OcamlBuffer.last_completion <- candidates;
       prefix, candidates
     with _ when !catch_errors -> "", []
   in
@@ -389,10 +395,10 @@ let eliminate_open ~errors program source_id loc =
   let source_file = Program.find_source program source_id in
   let fname = source_file.Program.source in
   let _env = ProgramCache.source_env program source_file in
-  let r = (loc, loc+1) in
+  let r = ProgramCache.last_cnum2old_lc program source_file loc in
   debugln "Locating open";
   let loc, typedtree_and_open =
-    let open Typedtree in
+(*    let open Typedtree in *)
     try
       TypedtreeLocate.locate_map_item
         (function loc -> function
@@ -536,7 +542,7 @@ let ignoring_auto_save f =
     ProgramCache.ignore_auto_save := ignore;
     raise e
 
-let program ?check filename = 
+let program ?check filename =
   debugln "filename=%s" filename;
   let file = Filename.basename filename
   and dirname = Filename.dirname filename in
@@ -550,13 +556,22 @@ let with_current_source ?check f =
     | Some _ -> ignoring_auto_save (function () -> f program source)
     | None -> f program source
 
+let current_pos () = `cnum (point ())
+let current_pos () = `lc (line_column_bytes ())
+
 let with_current_loc ?check f =
   with_current_source ?check
-    (fun program source -> f program source (point ()))
+    (fun program source -> f program source (current_pos ()))
 
-let with_file_and_loc ?check f =
-  let source, program = program ?check (buffer_file_name ()) in
-  f program source (point ())
+let locate_ident toplevel program source =
+  if toplevel then
+    let modname = Program.source2modname source in
+    Env_untyped.Module,
+    Ident.create_persistent modname
+  else
+    let loc = let loc = current_pos () in singleton loc in
+    let kind, id, _, _ = locate_ident_from_def_or_use program source loc in
+    kind, id
 
 let list_errors errors =
   String.concat "\n"
@@ -594,16 +609,8 @@ let rename toplevel =
     Profile.time_switch_to "locate longident";
 
     let renamed_kind, id =
-      if toplevel then
-        let modname = Program.source2modname source in
-        Env_untyped.Module,
-        Ident.create_persistent modname
-      else
-        let loc = let loc = point () in loc, loc + 1 in
-        (try
-           let kind, id, _, _ = locate_ident_from_def_or_use program source loc in
-           kind, id
-         with Not_found -> fail_owz "Cannot rename anything here")
+      try locate_ident toplevel program source
+      with Not_found -> fail_owz "Cannot rename anything here"
     in
 
     if List.mem renamed_kind [Env_untyped.Class ; Env_untyped.Cltype] &&
@@ -741,6 +748,14 @@ let undo_last () =
   with Stack.Empty ->
     message "No multiple-file action to undo")
 
+let pos2lc pos = `lc (pos.pos_lnum, pos.pos_cnum - pos.pos_bol)
+(*
+let loc2region_lc loc =
+  `lc (
+    (loc.loc_start.pos_lnum, loc.loc_start.pos_bol),
+    (loc.loc_end.pos_lnum, loc.loc_end.pos_bol)
+  )
+*)
 (* Grep entry point: user interface... *)
 let grep toplevel =
   do_auto_save ();
@@ -751,16 +766,8 @@ let grep toplevel =
     ProgramCache.check_for_refactoring ~errors program;
     debugln "found %d errors while checking the program" (List.length !errors);
     let kind, id =
-      if toplevel then
-        let modname = Program.source2modname source in
-        Env_untyped.Module,
-        Ident.create_persistent modname
-      else
-        let loc = let loc = point () in loc, loc + 1 in
-        (try
-           let kind, id, _, _ = locate_ident_from_def_or_use program source loc in
-           kind, id
-         with Not_found -> fail_owz "Cannot grep anything here")
+      try locate_ident toplevel program source
+      with Not_found -> fail_owz "Cannot grep anything here"
     in
     message "Grep %s%s %s"
       (if toplevel then "toplevel " else "")
@@ -787,7 +794,7 @@ let grep toplevel =
     let contents, overlays = bprint_grep_result program kind id result errors in
     let overlay face =
       List.map
-        (function loc -> face, loc.loc_start.pos_cnum, loc.loc_end.pos_cnum)
+        (function loc -> face, pos2lc loc.loc_start, pos2lc loc.loc_end)
     in
     let local_overlays =
       overlay Face.highlight_definition local_defs @
@@ -814,10 +821,10 @@ let jump_to program loc =
   try
     goto
       (Program.file_of_loc ~prefix:`absolute program loc)
-      (if infile then 0 else loc.loc_start.pos_cnum);
+      (if infile then `lc (1, 0) else pos2lc loc.loc_start);
     if not infile then
-      highlight Face.highlight_definition
-        loc.loc_start.pos_cnum loc.loc_end.pos_cnum
+      highlight_regions
+        [Face.highlight_definition, pos2lc loc.loc_start, pos2lc loc.loc_end]
   with Not_found ->
     fail_owz "file %s is not in the program" loc.loc_start.pos_fname
 

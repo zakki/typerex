@@ -22,6 +22,17 @@ include Debug.Tag(struct let tag = "simpleProgram" end)
 
 let project_file_names = [".typerex" ; ".ocp-wizard" ; ".ocamlwizard"]
 
+let plain_impl_extensions = ref [".ml"]
+let plain_intf_extensions = ref [".mli"]
+let intf_generating_extensions = ref [".mly"]
+let impl_generating_extensions = ref [".mll"; ".mly"; ".mlp"]
+
+let ocaml_impl_extensions () = !impl_generating_extensions @ !plain_impl_extensions
+let ocaml_intf_extensions () = !intf_generating_extensions @ !plain_intf_extensions
+
+let ocaml_source_extensions () =
+  List.union_set (ocaml_impl_extensions ()) (ocaml_intf_extensions ())
+
 (* Try to locate a project file in the directory containing d.  d
    must be an absolute directory name ! *)
 let rec find_file_backwards d filenames =
@@ -58,22 +69,31 @@ type project_file = {
   source_dirs : string list;
   include_dirs : string list;
   excluded_names : string list;
+  impl : string list;
+  intf : string list;
   nostdlib : bool;
   cmt : string option
 }
 
 exception ProjectFileError of (string * string)
 
-let parse_line ~permissive ~dirs ~incs ~exclude ~cmt_dir ~nostdlib file l =
+let parse_line
+    ~permissive ~dirs ~incs ~exclude ~impl ~intf ~cmt_dir ~nostdlib file l =
   let l = String.strip l in
   if l = "" then
     ()
-  else if l.[0] = 'I' then
-    let l = String.sub l 1 (String.length l - 1) in
-    incs := !incs @ words l
   else if l.[0] = '-' then
     let l = String.sub l 1 (String.length l - 1) in
     exclude := !exclude @ words l
+  else if String.starts_with l ~prefix:"IMPL" then
+    let l = String.sub l 4 (String.length l - 4) in
+    impl := !impl @ words l
+  else if String.starts_with l ~prefix:"INTF" then
+    let l = String.sub l 4 (String.length l - 4) in
+    intf := !intf @ words l
+  else if l.[0] = 'I' then
+    let l = String.sub l 1 (String.length l - 1) in
+    incs := !incs @ words l
   else if String.starts_with l ~prefix:"CMT" then
     if not permissive && !cmt_dir <> None then
       raise (ProjectFileError (file, "duplicate 'CMT' directive"))
@@ -95,14 +115,20 @@ let parse_project_file ~permissive pf =
   let dirs = ref []
   and incs = ref []
   and exclude = ref []
+  and impl = ref []
+  and intf = ref []
   and cmt_dir = ref None
   and nostdlib = ref false in
-  List.iter (parse_line ~permissive ~dirs ~incs ~exclude ~cmt_dir ~nostdlib pf)
+  List.iter
+    (parse_line ~permissive ~dirs ~incs ~exclude ~impl ~intf ~cmt_dir ~nostdlib pf)
     (File.lines_of_file pf);
+  List.iter (debugln "IMPL %s") !impl;
   {
     source_dirs = List.rev !dirs;
     include_dirs = List.rev !incs;
     excluded_names = List.rev !exclude;
+    impl = List.rev !impl;
+    intf = List.rev !intf;
     nostdlib = !nostdlib;
     cmt = !cmt_dir
   }
@@ -131,22 +157,25 @@ let prefix_by l name =
     name
 
 let classify_source f =
-  let open Filename in
-    if check_suffix f ".ml" then `ml
-    else if check_suffix f ".mli" then `mli
-    else if check_suffix f ".mll" || check_suffix f ".mly" then
-      `ml
-    else
-      `other
+  if List.exists (Filename.check_suffix f) (ocaml_impl_extensions ()) then
+    `ml
+  else if List.exists (Filename.check_suffix f) (ocaml_intf_extensions ()) then
+    `mli
+  else
+    `other
 
 let is_generated f =
   let kind = classify_source f in
-  let prefix = Filename.chop_extension f in
+  let prefix = Misc.chop_extension_if_any f in
   match kind with
-    | `mli -> Sys.file_exists (prefix ^ ".mly")
+    | `mli ->
+        List.exists
+          (function ext -> Sys.file_exists (prefix ^ ext))
+          !intf_generating_extensions
     | `ml ->
-      Sys.file_exists (prefix ^ ".mly") ||
-      Sys.file_exists (prefix ^ ".mll")
+        List.exists
+          (function ext -> Sys.file_exists (prefix ^ ext))
+          !impl_generating_extensions
     | `other -> false
 
 let directory_of file =
@@ -169,6 +198,8 @@ type project_info = {
     (* include directories (relative to the root) *)
   exclude : string list;
     (* excluded source files or units *)
+  impls : string list;
+  intfs : string list;
   cmt_dir : string option
 }
 
@@ -179,15 +210,17 @@ let project_dirs ~permissive ~ignore_project_file ~default_cwd ~stdlib file =
     let absolute_root, pf, root2here, here2root =
       find_project_file absolute_dir in
     let project_file = parse_project_file ~permissive pf in
-    { absolute_root;
-      here2root;
+    { absolute_root = absolute_root;
+      here2root = here2root;
       project_file = Some pf;
-      root2here;
+      root2here = root2here;
       dirs = project_file.source_dirs;
       incs =
         List.map (Misc.expand_directory stdlib) project_file.include_dirs
       @ (if project_file.nostdlib then [] else [stdlib]);
       exclude = project_file.excluded_names;
+      impls = project_file.impl;
+      intfs = project_file.intf;
       cmt_dir = project_file.cmt }
   with Not_found ->
     { absolute_root = absolute_dir;
@@ -197,6 +230,8 @@ let project_dirs ~permissive ~ignore_project_file ~default_cwd ~stdlib file =
       dirs = if default_cwd then ["."] else [];
       incs = [stdlib];
       exclude = [];
+      impls = [];
+      intfs = [];
       cmt_dir = None }
 
 let check_project p =
@@ -237,6 +272,8 @@ let check_project p =
   check_absent p.incs;
   check_absent p.dirs;
   check_absent (List.map Filename.dirname p.exclude);
+  check_absent (List.map Filename.dirname p.impls);
+  check_absent (List.map Filename.dirname p.intfs);
   match p.cmt_dir with
     | Some d -> check_absent [d]
     | None -> ()
@@ -257,8 +294,7 @@ let cmt2packed_units ~root file =
 
 (* Given a project description, return the set of compilation units
    contained in those directories. *)
-let project_units ~inc ~root dirs =
-  let open Filename in
+let project_units ~inc ~root dirs ~assumed =
   let units =
     List.fold_left
       (fun files d ->
@@ -270,14 +306,15 @@ let project_units ~inc ~root dirs =
 	    List.filter_map
 	      (function f ->
 	        if not inc &&
-	          (List.exists (check_suffix f)
-                     [".ml" ; ".mli" ; ".mly" ; ".mll" ; ".mlpack"] ||
-                     check_suffix f ".cmt" &&
-                     cmt2packed_units ~root (concat_if_relative d f) <> None)
+	          (List.exists (Filename.check_suffix f)
+                     (".mlpack" :: ocaml_source_extensions ()) ||
+                   Filename.check_suffix f ".cmt" &&
+                   cmt2packed_units ~root (concat_if_relative d f) <> None ||
+                   List.mem f assumed)
 	          || inc &&
-	          List.exists (check_suffix f) [".cmt" ; ".cmti" ; ".cmi"]
+	          List.exists (Filename.check_suffix f) [".cmt" ; ".cmti" ; ".cmi"]
 	        then
-	          Some (concat d (chop_extension f))
+	          Some (Filename.concat d (Misc.chop_extension_if_any f))
 	        else
 	          None)
 	      fs
@@ -367,11 +404,11 @@ let mlpack2units ~root file =
               Some prefix
             else
               None)
-          [".ml"; ".mli"; ".mll"; ".mly"; ".mlpack"; ".cmti" ; ".cmt"]
+          (ocaml_source_extensions () @ [".mlpack"; ".cmti" ; ".cmt"])
       with Not_found ->
         (* There should be a warning *)
         concat_if_relative dir (String.uncapitalize modname))
-    paths  
+    paths
 
 let packed_units ~root file =
   if Filename.check_suffix file ".mlpack" then
@@ -381,7 +418,7 @@ let packed_units ~root file =
   else
     invalid_arg "packed_units"
 
-let read_one_unit ~root ?assume ~load_path ~exclude prefix ~inc =
+let read_one_unit ~root ?assume ~impl ~intf ~load_path ~exclude prefix ~inc =
   (match assume with
     | Some f -> debugln "assuming %s" f
     | None -> ());
@@ -389,6 +426,7 @@ let read_one_unit ~root ?assume ~load_path ~exclude prefix ~inc =
     | [] -> None
     | t :: q ->
       let f = prefix ^ t in
+      debugln "trying %s" f;
       let abs_f = concat_if_relative root f in
       let excluded = List.mem f exclude || List.mem prefix exclude in
       if assume = Some f ||
@@ -398,11 +436,15 @@ let read_one_unit ~root ?assume ~load_path ~exclude prefix ~inc =
       else
 	first_existing q
   in
+  let first_existing' forced exts =
+    try Some (List.find (function f -> String.starts_with f ~prefix) forced, "")
+    with Not_found -> first_existing exts
+  in
   let file kind sort =
-    let source = first_existing
-      (match kind with
-	| `ml -> [".mll" ; ".mly" ; ".ml" ; "" (* stub for *caml-toplevel* *)]
-	| `mli -> [".mly" ; ".mli"])
+    let source = 
+      match kind with
+	| `ml -> first_existing' impl (ocaml_impl_extensions ())
+	| `mli -> first_existing' intf (ocaml_intf_extensions ())
     in
     (* We should make a concrete unit even when no sources are
        available (to allow getting documentation from embedded
@@ -418,9 +460,9 @@ let read_one_unit ~root ?assume ~load_path ~exclude prefix ~inc =
 	in
 	{
 	  source = source;
-	  preprocessor;
+	  preprocessor = preprocessor;
 	  nopervasives = false; (* stub *)
-	  load_path;
+	  load_path = load_path;
 	  typedtree = prefix ^ source_kind2cmt_suffix kind;
 	}
       )
@@ -438,7 +480,7 @@ let read_one_unit ~root ?assume ~load_path ~exclude prefix ~inc =
                 `pack {
                   p_interface = interface;
                   p_load_path = load_path;
-                  p_units;
+                  p_units = p_units;
                   p_typedtree = prefix ^ ".cmt"
                 }
               | None -> `none)
@@ -447,13 +489,13 @@ let read_one_unit ~root ?assume ~load_path ~exclude prefix ~inc =
   if implementation = `none && interface = None || inc then
     match first_existing [".cmti" ; ".cmt" ; ".cmi"] with
       | Some (a_signature, _) ->
-        Some (prefix, Abstract { a_load_path = load_path ; a_signature })
+        Some (prefix, Abstract { a_load_path = load_path ; a_signature = a_signature })
       | None -> None
   else
     let unit =
       match implementation with
-        | `impl impl -> Concrete { implementation = Some impl ; interface }
-        | `none -> Concrete { implementation = None ; interface }
+        | `impl impl -> Concrete { implementation = Some impl ; interface = interface }
+        | `none -> Concrete { implementation = None ; interface = interface }
         | `pack p -> Pack p
     in
     Some (prefix, unit)
@@ -483,7 +525,7 @@ let assign_cmts_to_unit first root cmts assigned_cmts prefix =
     | None -> None
   in
   function
-    | Concrete { implementation ; interface } ->
+    | Concrete { implementation = implementation; interface = interface } ->
       Concrete {
         implementation = assign `ml implementation;
         interface = assign `mli interface
@@ -522,6 +564,7 @@ let assign_cmts root cmts units =
         root unassigned_cmts (Hashtbl.create 100) prefix unit)
     units
 
+exception NotASourceFile of string
 exception FileNotInProgram of string * string list
 exception FileExcluded of string * string
 
@@ -540,14 +583,6 @@ let program
   if Sys.file_exists file && Sys.is_directory file then
     invalid_arg "file is a directory";
 
-  let source_kind =
-    match classify_source file with
-      | `other ->
-        if ignore_extension then `ml
-        else invalid_arg  (file ^ " is not an OCaml source file")
-      | `ml | `mli as k -> k
-  in
-
   let project =
     project_dirs
       ~permissive:ignore_absent ~ignore_project_file ~default_cwd
@@ -557,12 +592,22 @@ let program
   check_project project;
   let units_proj =
     project_units ~inc:false ~root:project.absolute_root project.dirs
+      ~assumed:(project.impls @ project.intfs)
   and units_libs =
-    project_units ~inc:true ~root:project.absolute_root project.incs
+    project_units ~inc:true ~root:project.absolute_root project.incs ~assumed:[]
   and load_path = project.dirs @ project.incs
   and exclude = project.exclude in
   let file = prefix_by project.root2here file in
   let absolute_file = Filename.concat project.absolute_root file in
+  let source_kind =
+    match classify_source file with
+      | `other ->
+          if List.mem file project.impls then `ml
+          else if List.mem file project.intfs then `mli
+          else if ignore_extension then `ml
+        else raise (NotASourceFile file)
+      | `ml | `mli as k -> k
+  in
   let file =
     if List.mem (Filename.dirname absolute_file) (project.dirs @ project.incs) then
       absolute_file
@@ -570,7 +615,7 @@ let program
       file
   in
   let prefix =
-    try Filename.chop_extension file
+    try Misc.chop_extension_if_any file
     with Invalid_argument _ when ignore_extension -> file in
   let source = prefix, source_kind in
   let missing = not (List.mem prefix units_proj) in
@@ -611,7 +656,8 @@ let program
             None
         in
         read_one_unit
-          ?assume ~root:project.absolute_root ~load_path ~exclude pref ~inc)
+          ?assume ~impl:project.impls ~intf:project.intfs
+          ~root:project.absolute_root ~load_path ~exclude pref ~inc)
   in
   let files = files false units_proj @ files true units_libs in
   let files =

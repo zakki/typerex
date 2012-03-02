@@ -164,9 +164,11 @@ val last2old : [ `char | `line ] -> program -> source_file -> int -> int
 val old2last_loc : program -> Location.t -> Location.t
 val last2old_loc : program -> Location.t -> Location.t
 
+type pos = [ `cnum of int | `lc of int * int ]
+
 (** Convert a "current" char number to "last-compiled" line (from 1)
     and column (from 0) numbers. *)
-val last_cnum2old_lc : program -> source_file -> int -> int * int
+val last_cnum2old_lc : program -> source_file -> pos -> int * int
 
 (** Create a cache for a function taking as arguments a program and a
     unit source file in this program. Programs are only distinguished

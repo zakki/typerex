@@ -62,14 +62,24 @@ end
     with some other editor. *)
 
 val comment_definition :
-  Program.program -> Program.source_file_id -> int -> string
+  Program.program -> Program.source_file_id -> ProgramCache.pos -> string
 val goto_definition :
-  Program.program -> Program.source_file_id -> int -> Location.t
+  Program.program -> Program.source_file_id -> ProgramCache.pos -> Location.t
 val cycle_definitions :
-  Program.program -> Program.source_file_id -> int -> Location.t
+  Program.program -> Program.source_file_id -> ProgramCache.pos -> Location.t
 val prune_lids :
   errors:exn list ref -> Program.program -> Program.source_file_id ->
   string * (int * int * string) list
 val eliminate_open :
-  errors:exn list ref -> Program.program -> Program.source_file_id -> int ->
+  errors:exn list ref -> Program.program -> Program.source_file_id -> ProgramCache.pos ->
   string * (int * int * string) list
+
+
+
+
+
+
+
+
+
+

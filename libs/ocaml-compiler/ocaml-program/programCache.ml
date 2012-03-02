@@ -15,13 +15,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Location
+open Lexing
 open Typedtree
 open Program
 include Debug.Tag(struct let tag = "programCache" end)
 
 let modtime f =
   if Sys.file_exists f then
-    Unix.((stat f).st_mtime)
+    (Unix.stat f).Unix.st_mtime
   else
     -. max_float
 
@@ -122,7 +124,7 @@ let read =
         Some (Cmi_file.read_cmi file), None, None
       else
         Profile.time_call "read cmt" Cmt_format.read file)
-  
+
 (* The following two functions are copied from [Cmt_format]. *)
 
 (* Return the external interface info in a cmi, cmt(if no cmti), or cmt file. *)
@@ -152,7 +154,7 @@ let read_cmi cm =
 (* Return the typedtree info in a cmt(i) file *)
 let read_cmt filename =
   match read filename with
-      _, None, _ -> raise Cmt_format.(Error (Not_a_typedtree filename))
+      _, None, _ -> raise (Cmt_format.Error (Cmt_format.Not_a_typedtree filename))
     | _, Some cmt, source -> cmt, source
 
 let read_typedtree file =
@@ -223,7 +225,7 @@ exception ExistingIgnoredCmti of string * compilation_unit
 (* return a prefix, and kind *)
 let modname2unit modname =
   let program = program () in
-  let load_path = 
+  let load_path =
     try
       let source = current_source () in
       Some (source_load_path program source)
@@ -280,7 +282,7 @@ let unit2cmi prefix = function
         | Pack {p_interface = Some source} ->
           NoCmt source,
           typedtree ~prefix:`absolute (program ()) source
-        | Pack ({p_interface = None ; p_typedtree} as unit)->
+        | Pack ({p_interface = None ; p_typedtree = p_typedtree} as unit)->
           NoCmtPack unit,
           Program.prefix_with ~prefix:`absolute (program ()) p_typedtree
         | Concrete _ -> assert false
@@ -296,21 +298,36 @@ let unit2cmi prefix = function
       else
         raise no_cmt
 
+let read_pers_struct_fun =
+  let read_pers_struct_fun =
+    make_cache
+      (function _, f -> normalize f)
+      (fun (_, f) _ -> modtime f)
+      (function modname, filename -> !Env.read_pers_struct_fun modname filename)
+  in
+  fun modname filename -> read_pers_struct_fun (modname, filename)
+
 (* We should relly on the digest too, if possible. *)
 let find_pers_struct modname =
   debugln "searching persistent structure %s" modname;
   let prefix, unit = modname2unit modname in
   let filename = unit2cmi prefix unit in
-  !Env.read_pers_struct_fun modname filename
+  read_pers_struct_fun modname filename
 
 let starting_time = 500000000
 
 let () =
   Cmt_env.init ();
+  (* We use lazyness for efficiency (e.g. Core) but the we have to
+     prevent any renaming, because lazy renamings appear inside the
+     [disabling_renaming] wrapper in [components_of_module], which
+     would not be disabled. *)
+  Env.EnvLazy.eager := false;
+  Ident.renaming_disabled := true;
   Ident.set_current_time starting_time;
   Env.find_pers_struct_fun :=
     Profile.time_call "find_pers_struct" find_pers_struct;
-  Env.read_cmi_fun := read_cmi
+  Env.read_cmi_fun := Profile.time_call "read_cmi" read_cmi
 
 let classify_ident id =
   let time = Ident.binding_time id in
@@ -518,21 +535,29 @@ let translate shift program source pos =
     | Some versions -> shift (read_modified_source versions) pos
     | None -> pos
 
+type pos = [ `cnum of int | `lc of int * int ]
+
 let last_cnum2old_lc program source pos =
+  let last_lc chunks =
+    match pos with
+      | `lc lc -> lc
+      | `cnum cnum ->
+        Diff.cnum2lnum `old chunks (Diff.last2old `char chunks cnum)
+  in
   try
     let chunks = source2modified program source in
-    Diff.cnum2lnum `old chunks (Diff.last2old `char chunks pos)
+    last_lc chunks
   with e -> try
     let chunks =
-      Diff.read_unmodified_file (Program.source ~prefix:`absolute program source) in
-    Diff.cnum2lnum `old chunks (Diff.last2old `char chunks pos)
+      Diff.read_unmodified_file
+        (Program.source ~prefix:`absolute program source) in
+    last_lc chunks    
   with _ ->
     Printf.ksprintf failwith
       "error translating location: %s" (Printexc.to_string e)
 
 let translate_loc shift target program loc =
   let origin = match target with `last -> `old | `old -> `last in
-  let open Location in let open Lexing in
   try
     let source = source_id_of_loc program loc in
     fdebug "translating location (cnum = %d) %a"
@@ -548,7 +573,7 @@ let translate_loc shift target program loc =
       debugln "lnum_cnum = %d" lnum_cnum;
       let lnum_cnum = translate (shift `char) program source lnum_cnum in
       let pos_lnum, chars = Diff.cnum2lnum target chunks lnum_cnum in
-      { pos with pos_cnum = lnum_cnum ; pos_lnum ; pos_bol = lnum_cnum - chars }
+      { pos with pos_cnum = lnum_cnum ; pos_lnum = pos_lnum ; pos_bol = lnum_cnum - chars }
     in
     let loc =
       { loc with

@@ -29,6 +29,7 @@ let rec classify_error = function
   | Resolve.Unbound _
   | Program.AmbiguousPersistent _
   | SimpleProgram.ProjectFileError _
+  | SimpleProgram.NotASourceFile _
   | IDE_Callback.Quit
   | OwzFailure _ -> `fail
   | Failure _ -> `error "Failure"
@@ -68,6 +69,8 @@ let rec print_error e =
           (String.concat ", " (List.map (function i, _ -> names.(i)) found))
       | SimpleProgram.ProjectFileError (file, desc) ->
         print "error in project description, file %s: %s" file desc
+      | SimpleProgram.NotASourceFile file ->
+        print "file %s is not known to be an OCaml source file" file
       | IDE_Callback.Quit ->
         print "Quit"
       | OwzFailure s ->

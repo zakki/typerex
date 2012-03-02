@@ -34,8 +34,8 @@
  </div>
 
 <div class="contents">
-<H1 CLASS="chapter"><A NAME="htoc37"></A>TypeRex tools<A NAME="chap:tools"></A></H1><P>This chapter summarizes the command-line tools which are provided
-together with the TypeRex environment.</P><H2 CLASS="section"><A NAME="toc13"></A><A NAME="htoc38">3.1</A>&#XA0;&#XA0;ocp-type</H2><P>The <CODE>ocp-type</CODE> command-line tool is the &#X201C;type-only&#X201D; OCaml compiler
+<H1 CLASS="chapter"><A NAME="htoc38"></A>TypeRex tools<A NAME="chap:tools"></A></H1><P>This chapter summarizes the command-line tools which are provided
+together with the TypeRex environment.</P><H2 CLASS="section"><A NAME="toc13"></A><A NAME="htoc39">3.1</A>&#XA0;&#XA0;ocp-type</H2><P>The <CODE>ocp-type</CODE> command-line tool is the &#X201C;type-only&#X201D; OCaml compiler
 which is used to extract the binary annotations needed by the
 TypeRex environment. It may be invoked directly or through the
 <CODE>ocp-wrapper</CODE> tools (see below). It accepts the same options and
@@ -55,9 +55,34 @@ be achieved by passing the option <CODE>-printer Camlp4AstDumper</CODE> to
 </LI></UL><P>
 Note that the third option is better than the second one with respect
 to locations (the accuracy of which is instrumental to TypeRex
-working).
+working).</P><H4 CLASS="subsubsection">Libraries</H4><P><CODE>ocp-type</CODE> accepts the special form
 
-</P><H2 CLASS="section"><A NAME="toc14"></A><A NAME="htoc39">3.2</A>&#XA0;&#XA0;ocp-wrapper</H2><P>The command <CODE>ocp-wrapper</CODE> and the specialized commands
+</FONT></P><PRE CLASS="verbatim">    ocp-type -save-types -a &lt;units&gt; -o &lt;target&gt;
+</FONT></PRE><P>
+where
+</P><UL CLASS="itemize"><LI CLASS="li-itemize">
+the argument units may be <CODE>cmi</CODE>, <CODE>cmo</CODE>, <CODE>cmti</CODE>, <CODE>cmt</CODE>, <CODE>mli</CODE>, or <CODE>ml</CODE> files, and
+</LI><LI CLASS="li-itemize">the target is ignored.
+</LI></UL><P>
+Only arguments ending in <CODE>ml</CODE> or <CODE>mli</CODE> will be considered,
+and typed into <CODE>cmt</CODE> or <CODE>cmti</CODE> files.</P><H4 CLASS="subsubsection">Module packs</H4><P><CODE>ocp-type</CODE> accepts the special form
+
+</FONT></P><PRE CLASS="verbatim">    ocp-type -save-types -pack &lt;units&gt; -o &lt;target&gt;
+</FONT></PRE><P>
+where
+</P><UL CLASS="itemize"><LI CLASS="li-itemize">
+the argument units may be <CODE>cmi</CODE>, <CODE>cmo</CODE>, <CODE>cmti</CODE>, <CODE>cmt</CODE>, <CODE>mli</CODE>, or <CODE>ml</CODE> files, and
+</LI><LI CLASS="li-itemize">the target may be a <CODE>cmo</CODE> or <CODE>cmt</CODE> file.
+</LI></UL><P>
+Howerver, input will always look at <CODE>cmt</CODE> or <CODE>cmti</CODE> (or
+<CODE>cmi</CODE> as a fallback) files (possibly generating them if <CODE>ml</CODE>
+or <CODE>mli</CODE> are given), and the output will always be written in a
+<CODE>cmt</CODE> file. If a <CODE>mli</CODE> file exists for the name of the
+pack, then <CODE>ocp-type</CODE> will look for a compiled interface file for
+it in <CODE>cmti</CODE> format (or <CODE>cmi</CODE> as a fallback) and match the
+result of packing the arguments against this signature.
+
+</P><H2 CLASS="section"><A NAME="toc14"></A><A NAME="htoc40">3.2</A>&#XA0;&#XA0;ocp-wrapper</H2><P>The command <CODE>ocp-wrapper</CODE> and the specialized commands
 <CODE>ocp-ocamlc</CODE>, <CODE>ocp-ocamlopt</CODE>, <CODE>ocp-ocamlc.opt</CODE>, and
 <CODE>ocp-ocamlopt.opt</CODE> simplify the generation of binary annotations
 by invoking <CODE>ocp-type</CODE> with the appropriate options, as part of
@@ -81,10 +106,19 @@ Any <CODE>-pp</CODE> option appearing in the command line is transformed as
 follows when passed to <CODE>ocp-type</CODE>:
 </P><UL CLASS="itemize"><LI CLASS="li-itemize">
 if the pre-processor command is (a variant of) <CODE>camlp4</CODE>,
+and unless option <CODE>-no-wrap-camlp4</CODE> is passed to <CODE>ocp-wrapper</CODE>,
 then the option <CODE>-printer Camlp4AstDumper</CODE> is added, which
 yields more accurate location information,
 </LI><LI CLASS="li-itemize">otherwise, the command is left unchanged.
-</LI></UL></BODY>
+</LI></UL><H4 CLASS="subsubsection">Libraries and Module Packs</H4><P><CODE>ocp-wrapper</CODE> accepts the special forms
+
+</FONT></P><PRE CLASS="verbatim">    ocp-wrapper -save-types &lt;compiler&gt; -a &lt;units&gt; -o &lt;target&gt;
+    ocp-wrapper -save-types &lt;compiler&gt; -pack &lt;units&gt; -o &lt;target&gt;
+</FONT></PRE><P>
+Arguments and targets ending in <CODE>cmx</CODE> are converted into <CODE>cmo</CODE>
+and targets into <CODE>cmt</CODE> as appropriate (see the documentation for
+<CODE>ocp-type</CODE>).
+</P></BODY>
 </HTML>
 </div>
 </div>

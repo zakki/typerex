@@ -64,14 +64,18 @@ let create size t_size state =
     t_pre = 0;
     t_post = t_size;
     offset = 0;
-    state
+    state = state;
   }
 
-let t_dump { t_buf ; t_pre ; t_post ; offset } c =
+let t_dump { t_buf = t_buf;
+             t_pre = t_pre ;
+             t_post = t_post ;
+             offset = offset } c =
   Printf.fprintf c "|t_buf|=%d, t_pre=%d, t_post=%d, offset=%d"
     (Array.length t_buf) t_pre t_post offset
 
-let t_snapshot { t_buf ; t_pre ; t_post ; offset } c =
+let t_snapshot { t_buf = t_buf ; t_pre = t_pre ;
+                 t_post = t_post ; offset = offset } c =
   let print i = Printf.fprintf c "%s|" (string t_buf.(i)) in
   Printf.fprintf c "...|";
   for i = max 0 (t_pre - 11) to t_pre - 1 do print i done;
@@ -151,7 +155,7 @@ let pos_bont buffer pos =
   else
     pos + length buffer.t_buf.(buffer.t_post) - buffer.offset
 
-let sub ({t_buf ; t_pre ; t_post} as tb) b e =
+let sub ({t_buf = t_buf ; t_pre = t_pre ; t_post = t_post} as tb) b e =
   let len = e - b in
   let e = pos2pointer tb e in
   let s = Array.create len t_pad in
@@ -321,5 +325,29 @@ let update_tokens tb prefix_start suffix_end chars_undo =
     start, old_len, Array.of_list modified
 
   let replace tb count = (*Profile.time_call "replace (outer)"*) (replace tb count)
+
+  (* 3.11 compatibility *)
+  module type T = sig
+    type tokenized_buffer = private {
+      chars : GapBuffer.gap_buffer;
+      mutable t_buf : Token.token array;
+      mutable t_pre : int;
+      mutable t_post : int;
+      mutable offset : int;
+      state: Token.state
+    }
+    val create : int -> int -> Token.state -> tokenized_buffer
+    val clear : tokenized_buffer -> unit
+    val t_length : tokenized_buffer -> int
+    val t_snapshot : tokenized_buffer -> out_channel -> unit
+    val goto : tokenized_buffer -> int -> unit
+    val forward : tokenized_buffer -> unit
+    val backward : tokenized_buffer -> unit
+    val pos_bot : tokenized_buffer -> int -> int
+    val pos_bont : tokenized_buffer -> int -> int
+    val sub : tokenized_buffer -> int -> int -> Token.token array
+    val pos2pointer : tokenized_buffer -> int -> int
+    val replace : tokenized_buffer -> int -> string -> int * int * Token.token array
+  end
 
 end

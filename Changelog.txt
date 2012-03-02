@@ -1,0 +1,24 @@
+1.0.0rc2
+
+  fixed coloring of constructors in type definitions
+  Fixed the crash when starting emacs on several files (>=3)
+  improved performance with large libraries (lazy environments, more cache)
+  fixed encoding bug with 3bytes utf8 characters
+  use the caml-mode error regexp instead of tuareg's
+  source extensions customizable (e.g., .eliom), mlp included by default
+  Applied Jun Furuse's indentation patch and changed a few defaults
+  fixed wrapper for -a
+  Allow to disable syntax coloring completely
+  Fixed camlp4 first-class modules
+  less risky names in lisp code
+  slightly improved documentation (ocamlbuild, libraries, module packing)
+  more robust ml/mli switching (contributed by Wojciech Meyer)
+  Compiles with 3.11.2 as claimed (no more 3.12 syntax in the code)
+  use line/column positions rather than absolute byte counts -> fixes windows eol
+  Tuareg commands use TypeRex standard library path rather than hard-coded default
+  made the prefix key customizable (C-o by default)
+  added option --disable-version-check to configure script
+
+1.0.0rc1
+
+  first public release

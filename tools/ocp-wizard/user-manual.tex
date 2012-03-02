@@ -77,6 +77,12 @@ or
           S [ A"ocp-wrapper"; A"-save-types"; ... ; A"ocamlc"]
 \end{verbatim}}
 \noindent to your \verb!myocamlbuild.ml! file.
+Another option is to invoke ocamlbuild with options:
+{\verbsize \begin{verbatim}
+ocamlbuild -ocamlc ocp-ocamlc.opt -ocamlopt ocp-ocamlopt.opt
+\end{verbatim}}
+\noindent Finally, don't forget t add \verb!CMT _build! to your \verb!.typerex! file
+(see below).
 
 \subsubsection{ocamlfind (without ocamlbuild)}
 Add
@@ -99,38 +105,47 @@ Alternatively, ocp-type provides a file Makefile.ocp-type.template,
 which is able to perform the ocp-type compilation automatically for
 simple projects.
 
-\subsection{Project configuration}
+\subsection{Project configuration: .typerex file}
 
-Most functionalities of \typerex\ rely on some knowledge of the
-edited program (source files, libraries\ldots) which should be
-specified in one of the following ways.
+Most functionalities of \typerex\ rely on some knowledge of the edited
+program (source files, libraries\ldots) which should be specified in a
+very simple project file at the ``root'' of its source tree with name
+\verb!.typerex!.
+% in one of the following ways.
+%
+%\subsubsection{.typerex file}
+%This is a very simple configuration file describing a project's
+%directories and libraries.
+When \typerex\ is invoked on a source file \verb!<file.ml>!, it looks
+for file \verb!.typerex! in the directory containing \verb!<file.ml>!,
+or its parent directories, back to the file system's root. This file
+is read at each command invocation (except syntax coloring and
+auto-completion) so modifications are taken into account immediately.
 
-\subsubsection{.typerex file}
-\typerex\ may use a very simple configuration file to know about a
-project's directories and libraries. When it is invoked on a source file
-\verb!<file.ml>!, it looks for file \verb!.typerex! in the directory containing
-\verb!<file.ml>!, or its parent directories, back to the file system's root.
-
-This file should specify the set of directories to search for OCaml
-source files, and the set of directories to include in the load path
-(\emph{i.e.}, libraries). It is also possible to exclude some source
-files or whole compilation units.
+\subsubsection*{Syntax of .typerex files}
+The \verb!.typerex! file should specify the set of directories to
+search for OCaml source files, and the set of directories to include
+in the load path (\emph{i.e.}, libraries). It is also possible to
+exclude some source files or whole compilation units, or to force
+files to be included whatever their extension (if any).
 
 The syntax of the \verb!.typerex! file is as follows:
 
 {\verbsize\begin{verbatim}
         <project file> := <line>* // file must end with a newline
 
-        <line> := <dirs>     // add all contained source files (non-recursive)
-                | I<dirs>    // include <dirs> as external libraries
-                             // +<dir> means <stdlib>/<dir>
-                | -<files>   // ignore these source files
-                | CMT <dir>  // search .cmt(i)s here instead of in source dir
-                | NOSTDLIB   // do not include the standard library path
+        <line> := <dirs>        // add all contained source files (non-recursive)
+                | I<dirs>       // include <dirs> as external libraries
+                                // +<dir> means <stdlib>/<dir>
+                | -<files>      // ignore these source files
+                | IMPL <files>  // treat these as implementation files
+                | INTF <files>  // treat these as interface files
+                | CMT <dir>     // search .cmt(i)s here instead of in source dir
+                | NOSTDLIB      // do not include the standard library path
                 | #<comment>
 
         <dirs> := white-space-separated list of directories
-        <files> := white-space-separated list of .ml, .mli, .mll, and .mly files
+        <files> := white-space-separated list of files
 \end{verbatim}}
 \noindent Relative directory names are interpreted with respect to the
 directory containing the project file \verb!.typerex!, and the project
@@ -139,7 +154,8 @@ directory itself may be denoted by '.', but the shortcuts '$\sim$' and
 shorthand for \verb!-<prefix>.ml <prefix>.mli ...! See \verb!.typerex! in
 the \typerex\ root directory for an example.
 
-{\bf Meaning of project and library directories:} Lines starting with
+\subsubsection*{Meaning of project and library directories}
+Lines starting with
 \verb!I! indicate that the specified directories are considered as
 \emph{library} and not as project's directories. The meaning of this
 distinction, which may change in the future, is currently the
@@ -159,7 +175,8 @@ following:
   meant to be a library)
 \end{itemize}
 
-{\bf Pack modules (experimental):} Pack modules are understood by
+\subsubsection*{Pack modules (experimental)}
+Pack modules are understood by
 \typerex\ if the source directories contain either a file
 \begin{itemize}
 \item \verb!pack.mlpack! in the ocamlbuild format: a list of module
@@ -167,8 +184,11 @@ following:
   directory containing the \verb!pack.mlpack! file, or
 \item \verb!pack.cmt!, whose contents is a pack module (such as
   generated by \verb!ocp-type -pack!. This option only works if the
-  packed modules are in the same directory as the resulting pack.
+  packed modules are in the same directory as the resulting pack,
+  which is not the case when compiling with \verb!ocamlbuild!.
 \end{itemize}
+
+\subsubsection*{Other options}
 
 {\bf \verb!CMT <dir>! syntax:} It is possible to specify a \verb!CMT!
 directory to search for \verb!.cmt(i)! files when they are not found
@@ -177,6 +197,17 @@ system moves the files around, but then if several modules (in
 different directories) have the same name, then outdated cmts won't be
 assigned unless there only is one (matching with the source digest to
 resolve ambiguity).
+
+{\bf \verb!IMPL <files>!, \verb!INTF <files>!:} Use this to use
+\typerex\ on source files with special extension (or none). The
+subdirectory containing these files still needs to be specified in the
+\verb!.typerex! file. You will also have to enable \typerex\ mode for
+those, either manually with \verb!M-x typerex-mode!, or by extending
+\verb!auto-mode-alist!  or \verb!interpreter-mode-alist! (see
+\verb!emacs.append!).
+
+{\bf \verb!NOSTDLIB!:} Do not implicitely include the standard library
+path.  This is required when using \typerex\ on the OCaml compiler.
 
 %An absent project file is allowed and means a project consisting of
 %only the current directory, with no library.

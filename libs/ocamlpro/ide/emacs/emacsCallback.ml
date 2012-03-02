@@ -74,12 +74,26 @@ end) = struct
       | `char -> Printf.sprintf "%s" pos
       | `byte -> Printf.sprintf "(byte-to-position %s)" pos
 
+  let pos' ?(unit=`byte) = function
+    | `lc (l, c) -> Printf.sprintf "(line-column-to-pos %d %d)" l c
+    | `cnum cnum -> pos ~unit cnum
+
+
   let goto_char ?unit n = command_unit
     "(progn (push (point) buffer-undo-list) (goto-char %s))" (pos ?unit n)
+
+  let goto_pos ?unit n = command_unit
+    "(progn (push (point) buffer-undo-list) (goto-char %s))" (pos' ?unit n)
+
   let point ?(unit=`byte) () =
     match unit with
       | `char -> command_int "(point)" - 1
       | `byte -> command_int "(position-bytes (point))" - 1
+  let line_column_bytes () =
+    let lc = command_string "(line-column-bytes)" in
+    match String.split lc ' ' with
+      | [l ; c] -> int_of_string l, int_of_string c
+      | _ -> invalid_arg "line_column_bytes"
   let line_number () = command_int "(line-number-at-pos)"
   let column_number () = command_int "(current-column)"
   let do_auto_save () = command_unit "(do-auto-save)"
@@ -100,7 +114,7 @@ end) = struct
   let save_buffer_visiting = command_unit "(save-buffer-visiting %S)"
   let rename_file = command_unit "(renamed-file %S %S)"
   let find_file = command_unit "(find-file %S)"
-  let goto ?unit file loc = find_file file ; goto_char ?unit loc
+  let goto ?unit file loc = find_file file ; goto_pos ?unit loc
 
   let set_cleared_buffer fmt =
     Printf.ksprintf (command_unit "(set-cleared-buffer %S)") fmt
@@ -128,7 +142,10 @@ end) = struct
          (List.map
             (function face, x, y ->
               Printf.sprintf "(,%s ,%s ,%s)"
-                (face_emacs_name face) (pos ?unit x) (pos ?unit y)) rs))
+                (face_emacs_name face) (pos' ?unit x) (pos' ?unit y)) rs))
+
+  let highlight ?unit face x y =
+      highlight_regions ?unit [face, x, y]
 
   let propertize_regions ?unit rs =
     command_unit "(propertize-regions `(%s))"

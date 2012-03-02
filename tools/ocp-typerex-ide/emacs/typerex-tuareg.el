@@ -316,6 +316,10 @@ Many people find eletric keys irritating, so you can disable them in
 setting this variable to nil."
   :group 'ocp :type 'boolean)
 
+(defcustom typerex-case-arrow-extra-indent 2
+  "*How many spaces to indent from a `->' keyword in a pattern match case."
+  :group 'ocp :type 'integer)
+
 (defcustom typerex-electric-close-vector t
   "*Non-nil means electrically insert `|' before a vector-closing `]' or
 `>' before an object-closing `}'.
@@ -378,8 +382,8 @@ them to the Caml toplevel."
 Valid names are `browse-url', `browse-url-firefox', etc."
   :group 'ocp)
 
-(defcustom typerex-library-path "/usr/local/lib/ocaml/"
-  "*Path to the Caml library."
+(defcustom typerex-library-path nil
+  "*Path to the Caml library. If nil, get it from the TypeRex server"
   :group 'ocp :type 'string)
 
 (defcustom typerex-definitions-max-items 30
@@ -750,6 +754,10 @@ Valid names are `browse-url', `browse-url-firefox', etc."
 This may sound like a neat trick, but note that it can change the
 alignment and can thus lead to surprises."
   :group 'ocp :type 'boolean)
+
+(defcustom ocp-syntax-coloring t
+  "If true, enable Font-Lock syntax highlighting"
+  :group 'ocp :type '(boolean))
 
 (defvar typerex-font-lock-symbols-alist
   (cond ((and (fboundp 'make-char) (fboundp 'charsetp) (charsetp 'symbol))
@@ -1166,7 +1174,7 @@ Short cuts for interactions with the toplevel:
           imenu-extract-index-name-function 'typerex-imenu-extract-index-name))
 
   ;; Hooks for typerex-mode, use them for typerex-mode configuration
-  (typerex-install-font-lock)
+  (if ocp-syntax-coloring (typerex-install-font-lock))
   (run-hooks 'typerex-mode-hook)
   (when typerex-use-abbrev-mode (abbrev-mode 1))
   (message nil))
@@ -1251,9 +1259,15 @@ Short cuts for interactions with the toplevel:
 ;; compilation-error-regexp-alist do not match the error messages when
 ;; the language is not English. Hence we add a regexp.
 
+;; The tuareg-mode regexp:
+;; (defconst typerex-error-regexp
+;;   "^[^\0-@]+ \"\\([^\"\n]+\\)\", [^\0-@]+ \\([0-9]+\\)[-,:]"
+;;   "Regular expression matching the error messages produced by (o)camlc.")
+
+;; The caml-mode regexp is told to be better for stacktraces:
 (defconst typerex-error-regexp
-  "^[^\0-@]+ \"\\([^\"\n]+\\)\", [^\0-@]+ \\([0-9]+\\)[-,:]"
-  "Regular expression matching the error messages produced by (o)camlc.")
+  "^[ A-\377]+ \"\\([^\"\n]+\\)\", [A-\377]+ \\([0-9]+\\)[-,:]"
+  "Regular expression matching the error messages produced by ocamlc.")
 
 (when (boundp 'compilation-error-regexp-alist)
   (or (assoc typerex-error-regexp
@@ -1989,12 +2003,16 @@ If found, return the actual text of the keyword or operator."
         (current-column))
        ((string= kwop "method")
         (+ (typerex-paren-or-indentation-column) typerex-method-indent))
-       ((string= kwop "->")
+       ((string= kwop "->") ;; -> ...; \n []
         (if (save-excursion
               (typerex-find-arrow-match)
               (or (looking-at "\\<fun\\>\\||")
                   (looking-at (typerex-give-extra-unindent-regexp))))
-            (typerex-paren-or-indentation-indent)
+	    (progn
+	      (if (or (string= (match-string 0) "|"))
+		  (+ typerex-case-arrow-extra-indent (typerex-paren-or-indentation-indent))
+		(- (+ typerex-case-arrow-extra-indent (typerex-paren-or-indentation-indent))
+		   typerex-pipe-extra-unindent)))
           (typerex-find-semicolon-match)))
        ((string= kwop "end")
         (typerex-find-match)
@@ -2335,9 +2353,9 @@ Returns t iff skipped to indentation."
 (defun typerex-compute-arrow-indent (start-pos)
   (let (kwop pos)
     (save-excursion (setq kwop (typerex-find-arrow-match) pos (point)))
-    (cond ((string= kwop "|")
+    (cond ((string= kwop "|") ;; | ... ->
            (typerex-find-arrow-match)
-           (+ (current-column) typerex-default-indent))
+           (+ (current-column) typerex-default-indent typerex-case-arrow-extra-indent))
           ((or (string= kwop "val")
                (string= kwop "let"))
            (goto-char pos)
@@ -2384,7 +2402,7 @@ Returns t iff skipped to indentation."
 
 (defun typerex-compute-keyword-indent (kwop leading-operator start-pos)
   (cond ((string= kwop ";")
-         (if (looking-at (typerex-no-code-after ";"))
+         (if (looking-at (typerex-no-code-after ";")) ;; previous line ends with `;'
              (let* ((pos (point)) (indent (typerex-find-semicolon-match)))
                (if (looking-at typerex-phrase-regexp-1)
                    (progn
@@ -2549,7 +2567,7 @@ Returns t iff skipped to indentation."
                (typerex-indent-from-paren leading-operator start-pos)
              (+ typerex-default-indent
                 (typerex-indent-from-paren leading-operator start-pos))))
-          ((looking-at "->")
+          ((looking-at "->") ;; line after ->. A case or arrow type with a new line 
            (typerex-compute-arrow-indent start-pos))
           ((looking-at (typerex-give-keyword-regexp))
            (typerex-compute-keyword-indent kwop leading-operator start-pos))
@@ -3194,13 +3212,39 @@ or indent all lines in the current phrase."
   (caml-complete arg)
   (modify-syntax-entry ?_ "_" typerex-mode-syntax-table))
 
+(defun typerex--try-find-alternate-file (partial-name extension)
+  (let* ((filename (concat partial-name extension))
+         (buffer (get-file-buffer filename))
+         (what (cond 
+                ((string= extension ".ml") "implementation")
+                ((string= extension ".mli") "interface"))))
+    (if buffer
+        (progn (switch-to-buffer buffer) t)
+      (if (file-exists-p filename)
+          (progn (find-file filename) t)
+        (when (and (not (string= extension ".mll"))
+                   (y-or-n-p 
+                    (format "Create %s file (%s)" what 
+                            (file-name-nondirectory filename))))
+          (find-file filename)))
+      nil)))
+
 (defun typerex-find-alternate-file ()
   "Switch Implementation/Interface."
   (interactive)
   (let ((name (buffer-file-name)))
-    (when (string-match "\\`\\(.*\\)\\.ml\\(i\\)?\\'" name)
-      (find-file (concat (typerex-match-string 1 name)
-                         (if (match-beginning 2) ".ml" ".mli"))))))
+    (when (string-match "\\`\\(.*\\)\\.ml\\([il]\\)?\\'" name)
+      (let ((partial-name (typerex-match-string 1 name)))
+        (let ((c (match-string 2 name)))
+          (cond 
+           ((string= "i" c) (unless (typerex--try-find-alternate-file 
+                                     partial-name ".mll")
+                              (typerex--try-find-alternate-file
+                               partial-name ".ml")))
+           ((string= "l" c) (typerex--try-find-alternate-file 
+                             partial-name ".mli"))
+           ((eq nil c) (typerex--try-find-alternate-file 
+                             partial-name ".mli"))))))))
 
 (defun typerex-ensure-space ()
   (let ((prec (preceding-char)))

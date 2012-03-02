@@ -1,5 +1,5 @@
 # Set VERSION so we ongit ly need to edit it one place (ie. here)
-AC_INIT(TypeRex, 1.0.0rc1, contact@ocamlpro.com)
+AC_INIT(TypeRex, 1.0.0rc2, contact@ocamlpro.com)
 
 AC_COPYRIGHT(Copyright 2011 OcamlPro SAS)
 
@@ -11,8 +11,14 @@ if test "$OCAMLC" = "no"; then
   AC_MSG_ERROR([You must install the OCaml compiler])
 fi
 
+AC_ARG_ENABLE(version-check,
+ [  --disable-version-check            do not check OCaml version],
+ [VERSION_CHECK="$enableval"],
+ [VERSION_CHECK="yes"])
+
 # Check that OCaml version is 3.11.2 or 3.12.1
-if test "$OCAMLVERSION" != "3.11.2" &&
+if test "$VERSION_CHECK" = "yes" &&
+   test "$OCAMLVERSION" != "3.11.2" &&
    test "$OCAMLVERSION" != "3.12.0" &&
    test "$OCAMLVERSION" != "3.12.1" ; then
   AC_MSG_ERROR([Your version of OCaml: $OCAMLVERSION is not supported])
@@ -121,3 +127,8 @@ AC_OUTPUT
 echo
 echo Executables will be installed in ${bindir}
 echo Emacs files will be installed in ${lispdir}
+if test "$INSTALL_AUTO_COMPLETE" = 1; then
+  echo auto-complete will be installed
+else
+  echo auto-complete will NOT be installed
+fi

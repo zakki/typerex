@@ -14,16 +14,17 @@ CMT _obuild
 
 # OCamlPro "standard" library
 libs/ocamlpro/lang
--libs/ocamlpro/lang/test.ml libs/ocamlpro/lang/test.mli
--libs/ocamlpro/lang/ocpString_test.ml libs/ocamlpro/lang/ocpString_test.mli
--libs/ocamlpro/lang/ocpList_test.ml libs/ocamlpro/lang/ocpList_test.mli
+-libs/ocamlpro/lang/test
+-libs/ocamlpro/lang/ocpString_test
+-libs/ocamlpro/lang/ocpList_test
+-libs/ocamlpro/lang/trie
 libs/ocamlpro/system
 -libs/ocamlpro/system/file_test.ml libs/ocamlpro/systemfile_test.mli
 
 # OCaml compiler sources
 ocaml/utils
 -ocaml/utils/tbl.mli
--ocaml/utils/config
+#-ocaml/utils/config
 ocaml/parsing
 ocaml/typing
 -ocaml/typing/ident.mli

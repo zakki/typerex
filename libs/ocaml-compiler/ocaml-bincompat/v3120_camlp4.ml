@@ -2751,11 +2751,14 @@ end = struct
               | Ast.MeTyc (loc, me, mt) ->
                   mkmod loc
                     (Pmod_constraint ((module_expr me), (module_type mt)))
-              | Ast.MePkg (loc, (Ast.ExTyc (_, e, (Ast.TyPkg (_, pt))))) ->
-assert false
-(*
-                  mkmod loc (Pmod_unpack ((expr e), (package_type pt)))
-*)
+              | Ast.MePkg (loc, (Ast.ExTyc (c_loc, e, (Ast.TyPkg (pt_loc, pt))))) ->
+                mkmod loc
+                  (Pmod_unpack
+                     (mkexp c_loc
+                        (Pexp_constraint
+                           (expr e,
+                            Some(mktyp pt_loc (Ptyp_package (package_type pt))),
+                            None))))
               | Ast.MePkg (loc, _) ->
                   error loc "(value expr) not supported yet"
               | Ast.MeAnt (loc, _) ->

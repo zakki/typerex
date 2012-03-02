@@ -46,8 +46,8 @@ begin library "ocp-wizard-lib"
     "syntax/recoveringOCamlParser.ml" (generated=true);
 *)
     "syntax/ocamlTokenize.ml";
-    "syntax/completion.ml" (nodeps = [ "OcamlBuffer" ])
-    "syntax/ocamlBuffer.ml" 
+    "syntax/completion.ml";
+    "syntax/ocamlBuffer.ml";
     "syntax/colorize.ml";
 
     "main/exceptions.ml";

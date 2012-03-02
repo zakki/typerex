@@ -69,6 +69,13 @@ let enable_profile s =
   Profile.enabled := true;
   OwzServer.profile := Some s
 
+let append_to_list_ref l l' = l := !l @ l'
+
+let extension_option name list desc =
+  (name,
+   String (function s -> append_to_list_ref list (String.split s ',')),
+   Printf.sprintf " Register additional %s" desc)
+
 let options = align [  
 
   ("-debug", String enable_debug,
@@ -96,6 +103,15 @@ let options = align [
   ("-coloring-theme", String Colorize.set_theme,
    Printf.sprintf " Use the specified color theme (%s)"
      (String.concat ", " (Colorize.list_themes())));
+
+  extension_option "-add-intf-suffixes" SimpleProgram.plain_intf_extensions
+    "interface suffixes";
+  extension_option "-add-impl-suffixes" SimpleProgram.plain_impl_extensions
+    "implementation suffixes";
+  extension_option "-add-intf-generating" SimpleProgram.intf_generating_extensions
+    "interface-generating suffixes";
+  extension_option "-add-impl-generating" SimpleProgram.impl_generating_extensions
+    "implementation-generating suffixes";
 
   Typerex_config.version
 ]

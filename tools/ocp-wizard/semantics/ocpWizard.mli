@@ -22,16 +22,18 @@
     sources. Querries are specified using ranges, which are the most
     flexible since a position p may be encoded as \[p, p+1\[. *)
 
+type region = [`lc of (int * int) * (int * int) | `cnum of int * int]
+
 (** Find the global ident of which the definition, or an occurrence,
     appears at the specified position. *)
 val locate_ident_from_def_or_use :
-  Program.program -> Program.source_file_id -> int * int ->
+  Program.program -> Program.source_file_id -> region ->
   Env_untyped.path_sort * Ident.t * Env_untyped.description * [ `ref of Path.t | `def ]
 
 (** Return the "visible" gobal ident whose definition contains the
     specified range, as well as this ident's location. *)
 val visible_ident_definition :
-  [ `innermost | `outermost ] -> Program.source_file_id -> int * int ->
+  [ `innermost | `outermost ] -> Program.source_file_id -> region ->
   Program.program ->
   Env_untyped.path_sort * Ident.t * Location.t
 

@@ -7,10 +7,12 @@ FIX=typerex-config ocplib-lang ocplib-system ocaml-config
 compile: ./_obuild/unixrun ocp-typerex.ocp
 	$(OCPBUILD) -init -scan -sanitize $(FIX) $(TOOLS)
 	make -C tools/ocp-typerex-ide
+	@echo "TypeRex compilation successful"
 
 ocp-typerex.ocp: ocp-typerex.ocp.template Makefile.config
-	echo "(* Generated from $< *)" >$@
-	cat  $< | \
+	@echo genetaring $@
+	@echo "(* Generated from $< *)" >$@
+	@cat  $< | \
 	sed -e 's/OCP_BUILD_OCAMLC/$(subst /,\/,$(OCP_BUILD_OCAMLC))/g' | \
 	sed -e 's/OCP_BUILD_OCAMLOPT/$(subst /,\/,$(OCP_BUILD_OCAMLOPT))/g' | \
 	sed -e 's/OCP_BUILD_OCAMLDEP/$(subst /,\/,$(OCP_BUILD_OCAMLDEP))/g' | \
@@ -45,6 +47,9 @@ TOOLS=\
 	ocp-wizard
 
 install: install-binaries install-emacs
+	@echo "\nInstallation complete."
+	@echo \
+	  "Important notice: TypeRex is incompatible with tuareg-mode. Do not enable both!"
 	@echo "Remember to configure Emacs for TypeRex. You may do it by running:"
 	@echo "    cat emacs.append >>~/.emacs"
 

@@ -151,7 +151,7 @@ let rec enclosing_item ~before =
       | AND :: before, stack ->
         (match enclosing_item ~before with
           | `values _ -> `values (List.mem EQUAL stack)
-          | `types _ -> `types (List.mem EQUAL stack)
+          | `types _ | `type_expr -> `types (List.mem EQUAL stack)
           | `modules _ -> `modules (List.mem EQUAL stack)
           | i -> i
         )
@@ -364,8 +364,8 @@ let classify_lid ~before ~after =
 
 let any_token2faces = ref []
 
-let lookahead = 100
-let lookbehind = 100
+let lookahead = 300
+let lookbehind = 300
 
 open OcamlTokenize
 

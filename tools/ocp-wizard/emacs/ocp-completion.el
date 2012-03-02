@@ -15,85 +15,87 @@
 ;                                                                        ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Auto-completion using Auto Complete Mode
+;; Auto-completion using Auto Complete Mode
 
-; This file defines a completion source for the auto complete mode,
-; which rellies on ocp-wizard tokenization and semantic analysis.
+;; This file defines a completion source for the auto complete mode,
+;; which rellies on ocp-wizard tokenization and semantic analysis.
 
 (defcustom auto-complete-keys nil
   "If set, simultaneously specifies a set of keys for auto-completion"
   :group 'ocp :type '(symbol))
 
-(require 'auto-complete-config nil t)
+;;(eval-when-compile
+  (require 'auto-complete-config nil t)
+;;)
 
-(defvar last-completion-point nil
+(defvar last-ocp-completion-point nil
   "the point at which completion data is available, if any")
-(make-variable-buffer-local 'last-completion-point)
-(defvar last-completion-data nil
+(make-variable-buffer-local 'last-ocp-completion-point)
+(defvar last-ocp-completion-data nil
   "the data for the last completion point, if any")
-(make-variable-buffer-local 'last-completion-data)
+(make-variable-buffer-local 'last-ocp-completion-data)
 
-(defun discard-completion-data ()
+(defun discard-ocp-completion-data ()
   "Flush the completion data. This function is called by the
 modification hook in tokenize.el."
-  (setq last-completion-point nil)
-  (setq last-completion-data nil))
+  (setq last-ocp-completion-point nil)
+  (setq last-ocp-completion-data nil))
 
-(defun compute-completion-data ()
-;  (message "computing candidates...")
+(defun compute-ocp-completion-data ()
+;;  (message "computing candidates...")
   (let*
       ((pos (- (position-bytes (point)) 1))
         (result
         (owz-string-command
          (concat
           "completion " (buffer-name) " " (int-to-string pos)))))
-;    (message "candidates: %s" result)
+;;    (message "candidates: %s" result)
     (let
         ((candidates (read result)))
-;      (mapc
-;       (lambda (c) (message "candidate: %s" c))
-;       candidates)
+;;      (mapc
+;;       (lambda (c) (message "candidate: %s" c))
+;;       candidates)
       candidates))
   )
 
-(defun get-completion-data ()
-  (modify-changed-region)
-  (if (eq last-completion-point (point))
-      last-completion-data
-    (setq last-completion-point (point))
-    (setq last-completion-data (compute-completion-data))
-    last-completion-data))
+(defun get-ocp-completion-data ()
+  (ocp-modify-changed-region)
+  (if (eq last-ocp-completion-point (point))
+      last-ocp-completion-data
+    (setq last-ocp-completion-point (point))
+    (setq last-ocp-completion-data (compute-ocp-completion-data))
+    last-ocp-completion-data))
 
-(defun ocp-prefix () (eval (car (get-completion-data))))
-(defun ocp-candidates () (cadr (get-completion-data)))
+(defun ocp-prefix () (eval (car (get-ocp-completion-data))))
+(defun ocp-candidates () (cadr (get-ocp-completion-data)))
 
 (defun ocp-candidates-names ()
   (let ((candidates (ocp-candidates)))
-;    (message "candidates: %s" candidates)
+;;    (message "candidates: %s" candidates)
     (let ((candidates (mapcar 'car candidates)))
-;      (message "candidates: %s" candidates)
+;;      (message "candidates: %s" candidates)
       candidates)))
 
-;(defun ocp-ac-documentation (candidate)
-;  (message "getting doc for %s" candidate)
-;  (let ((doc (cadr (assoc candidate (ocp-candidates)))))
-;    (message "doc=%s" doc)
-;    doc))
+;;(defun ocp-ac-documentation (candidate)
+;;  (message "getting doc for %s" candidate)
+;;  (let ((doc (cadr (assoc candidate (ocp-candidates)))))
+;;    (message "doc=%s" doc)
+;;    doc))
 
 (defun ocp-ac-documentation (candidate)
-;  (message "getting doc for %s" candidate)
+;;  (message "getting doc for %s" candidate)
   (let ((doc
          (owz-string-command
           (concat "completion-doc " (buffer-name) " " candidate))))
-;    (message "doc=%s" doc)
+;;    (message "doc=%s" doc)
     doc))
 
 ;; This is not how symbol works
-;(defun ocp-ac-symbol (candidate)
-;  (message "getting symbol for %s" candidate)
-;  (let ((symb (cadr (assoc candidate (ocp-candidates)))))
-;    (message "symb=%s" symb)
-;    symb))
+;;(defun ocp-ac-symbol (candidate)
+;;  (message "getting symbol for %s" candidate)
+;;  (let ((symb (cadr (assoc candidate (ocp-candidates)))))
+;;    (message "symb=%s" symb)
+;;    symb))
 
 (defun ac-keys-backquote-backslash ()
   "configuration using backquote to complete longest common
@@ -128,7 +130,7 @@ modification hook in tokenize.el."
      (define-key ac-mode-map "²" 'auto-complete)
      (define-key (current-global-map) "²" nil)
      (define-key ac-completing-map "$" 'ac-complete)
-     ;;AutoComplete keymap: keeping normal behavior of RET and TAB, up and down
+     ;; AutoComplete keymap: keeping normal behavior of RET and TAB, up and down
      (define-key ac-completing-map "\C-n" 'ac-next)
      (define-key ac-completing-map "\C-p" 'ac-previous)
      (define-key ac-completing-map "\r" nil)
@@ -149,7 +151,7 @@ as trigger key"
       (ac-define-source ocp-wizard
         '((candidates . ocp-candidates-names)
           (prefix . ocp-prefix)
-;          (symbol . ocp-ac-symbol)
+;;          (symbol . ocp-ac-symbol)
           (document . ocp-ac-documentation)
           ))
       ;; Set auto-completion source to ocp-wizard when in TypeRex mode

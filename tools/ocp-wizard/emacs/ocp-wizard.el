@@ -28,15 +28,19 @@
   "mouse event to trigger the contextual menu (default nil)"
   :group 'ocp)
 
+(defcustom ocp-prefix-key [(control o)]
+  "key combination to trigger the command menu (default nil)"
+  :group 'ocp)
+
 (defun ocp-wizard-menu-plugin ()
   "Register the commands as a keyboard menu"
+
   (defvar ocp-prefix (make-sparse-keymap "OCP"))
-;  (define-prefix-command 'ocp-prefix nil "OCP")
-  (define-key typerex-mode-map [(control o)] ocp-prefix)
+  (define-key typerex-mode-map ocp-prefix-key ocp-prefix)
+  (when ocp-menu-trigger
+    (define-key typerex-mode-map ocp-menu-trigger ocp-prefix))
 
   (defvar ocp-prefix-top (make-sparse-keymap "Toplevel"))
-;  (define-prefix-command 'ocp-prefix-top nil "Toplevel")
-;  (define-key typerex-mode-map [(t)] 'ocp-prefix-top)
   (define-key ocp-prefix-top [(r)] '("Rename" . ocp-rename-toplevel))
   (define-key ocp-prefix-top [(g)] '("Grep" . ocp-grep-toplevel))
 
@@ -49,35 +53,9 @@
   (define-key ocp-prefix [(a)] '("Alternate definitions" . ocp-cycle-definitions))
   (define-key ocp-prefix [(d)] '("Definition" . ocp-goto-definition))
   (define-key ocp-prefix [(c)] '("Comment" . ocp-comment-definition))
-
-;;   (defvar typerex-mode-menu)
-;; ;; keys are irrelevant, but should be all different !
-;;   (define-key typerex-mode-menu [(separator)] '(menu-item "---"))
-;;   (mapc
-;;    (lambda (c)
-;;      (define-key typerex-mode-menu (cadr (cdr c))
-;;     `(menu-item ,(cadr c) ,(car c) ,:help ,(documentation (car c)))))
-;;    '(
-;;      (ocp-restart-server "Restart" "s")
-;;      (ocp-undo "Undo (global)" "u")
-;;      (ocp-eliminate-open "Qualify" "q")
-;;      (ocp-prune-lids "Prune" "p")
-;;      (ocp-rename "Rename" "r")
-;;      (ocp-grep "Grep" "g")
-;;      (ocp-cycle-definitions "Alternate definitions" "a")
-;;      (ocp-goto-definition "Definition" "d")
-;;      (ocp-comment-definition "Comment" "c")
-;;      (ocp-rename-toplevel "Toplevel Rename" [(tr)])
-;;      (ocp-grep-toplevel "Toplevel Grep" [(tg)])
-;;      ))
-  (when ocp-menu-trigger
-;    (add-hook
-;     'typerex-mode-hook
-;     (lambda ()
-    (define-key (current-local-map) ocp-menu-trigger ocp-prefix))
   )
 
-(defun action-item (c)
+(defun ocp-action-item (c)
   `[,(cadr c) ,(car c) ,:help ,(documentation (car c))])
 
 (defun typerex-build-menu ()
@@ -87,7 +65,7 @@
    (append
    '("TypeRex")
    (mapcar
-    'action-item
+    'ocp-action-item
     '(
       (ocp-grep-toplevel "Toplevel Grep")
       (ocp-rename-toplevel "Toplevel Rename")
@@ -111,6 +89,8 @@
      ["Switch .ml/.mli" typerex-find-alternate-file t]
    "---"
      ["Compile..." compile t]
+;;     ["On-the-fly compilation" flymake-mode :style toggle :selected flymake-mode
+;;      :help "Turn on/off on-the-fly compilation with ocamlbuild"]
 
      ("Interactive Mode"
       ["Run Caml Toplevel" typerex-run-caml t]
@@ -146,7 +126,7 @@
        typerex-with-caml-mode-p]
      "---"
      ("More"
-     ,(action-item '(ocp-restart-server "Restart"))
+     ,(ocp-action-item '(ocp-restart-server "Restart"))
      ["Customize TypeRex Mode..." (customize-group 'ocp) t]
      ("TypeRex Options" ["Dummy" nil t])
      ("TypeRex Interactive Options" ["Dummy" nil t])
@@ -172,8 +152,4 @@
                   "Definitions" typerex-definitions-menu)))
       (setq typerex-definitions-menu-last-buffer nil))))
 
-
-; This overwrites the bindings of ocp-wizard-plugin, so this file
-; should be evaluated after hooks are evaluated
-;(ocp-wizard-menu-plugin)
-(add-hook 'typerex-mode-hook 'ocp-wizard-menu-plugin)
+(ocp-wizard-menu-plugin)

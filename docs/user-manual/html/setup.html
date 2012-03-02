@@ -40,7 +40,8 @@ installed.</P><H2 CLASS="section"><A NAME="toc3"></A><A NAME="htoc2">1.1</A>&#XA
 Linux (32-bit or 64-bit) or MacOS (tested with 10.6.8)
 </LI><LI CLASS="li-itemize">OCaml &#X2265;3.11.2
 </LI><LI CLASS="li-itemize">Emacs (Tested with 23.2.1, does not work under X-Emacs, reported
-to work with Aquamacs)
+to work with Aquamacs but with performance issues)
+</LI><LI CLASS="li-itemize">Gnu diff, present in PATH
 </LI></UL><H3 CLASS="subsection"><A NAME="htoc4">1.1.2</A>&#XA0;&#XA0;Obtaining TypeRex</H3><P>We recommend using the compressed archive distribution of
 TypeRex.
 </P><H4 CLASS="subsubsection">Source archive</H4><P>All versions of TypeRex can be found at
@@ -49,6 +50,8 @@ TypeRex.
 Useful options (examples):
 
 </FONT></P><PRE CLASS="verbatim">    --bindir=/opt/typerex
+    --disable-version-check
+        do not check OCaml version (allows, e.g., ocaml-3.12.1-rc1)
     --with-lispdir=~/.emacs.d
         default is a system-wide installation path
     --with-ocp-build=&lt;command&gt;
@@ -70,7 +73,23 @@ Append the contents of emacs.append to your &#X223C;<CODE>/.emacs</CODE>:
 </FONT></PRE><P>
 (or paste the contents where you like). The next section
 shows how to customize this Emacs configuration in order to handle
-non-standard settings and to fine-tune various TypeRex options.</P><H3 CLASS="subsection"><A NAME="htoc9">1.2.4</A>&#XA0;&#XA0;Testing the environment</H3><P>Open a <CODE>.ml</CODE> file inside emacs, and switch to the
+non-standard settings and to fine-tune various TypeRex options.</P><P><B>Warning:</B> TypeRex is incompatible with (the original version
+of) the <CODE>tuareg-mode</CODE>. Do not enable both in your <CODE>.emacs</CODE>.</P><H4 CLASS="subsubsection">Optional: enabling typerex for additional source file extensions</H4><P>
+By default, the <CODE>auto-mode-alist</CODE> settings in <CODE>emacs.append</CODE>
+automatically start the TypeRex mode for standard OCaml source file extensions.
+You can add more extensions by writing, for example:
+
+</FONT></P><PRE CLASS="verbatim">    (add-to-list 'auto-mode-alist '("\\.eliom" . typerex-mode))
+</FONT></PRE><P>
+Note that if you intend to use TypeRex on these source
+file for more than syntax coloring, you will also need to register
+these extensions either globally by adding an option to the server:
+
+</FONT></P><PRE CLASS="verbatim">    (setq ocp-server-command "ocp-wizard -add-impl-suffixes .eliom")
+</FONT></PRE><P>
+or in the project description (as explain later). This
+second option is necessary for OCaml scripts which are detected with
+an interpreter directive on the first line.</P><H3 CLASS="subsection"><A NAME="htoc9">1.2.4</A>&#XA0;&#XA0;Testing the environment</H3><P>Open a <CODE>.ml</CODE> file inside emacs, and switch to the
 <CODE>*Messages*</CODE> buffer. If you see the line &#X201C;Connection
 established with TypeRex server&#X201D;, the installation is OK.</P><H2 CLASS="section"><A NAME="toc5"></A><A NAME="htoc10">1.3</A>&#XA0;&#XA0;TypeRex configuration (optional)</H2><P>The following additional configuration is done through Emacs
 customizable variables, and can be changed in two ways:
@@ -83,14 +102,34 @@ your <CODE>.emacs</CODE> for duplicate variable customization, because
 <CODE>custom-set-variables</CODE> expression. Also note that many changes
 require restarting Emacs to become effective, or at least running
 <CODE>M-x ocp-restart-server</CODE>.
-</LI></UL><H3 CLASS="subsection"><A NAME="htoc11">1.3.1</A>&#XA0;&#XA0;TypeRex contextual menu</H3><P>The contextual menu can be enabled when right-cliking ; it offers the
+</LI></UL><H3 CLASS="subsection"><A NAME="htoc11">1.3.1</A>&#XA0;&#XA0;TypeRex keys and contextual menu</H3><P>You may change the default prefix key <CODE>(C-o)</CODE> for calling
+TypeRex commands. Just add the following to your <CODE>.emacs</CODE>:
+
+</FONT></P><PRE CLASS="verbatim">    ;; Changing the TypeRex prefix key:
+    (setq ocp-prefix-key [(control j)])
+</FONT></PRE><P>The contextual menu can also be enabled when right-cliking ; it offers the
 same actions as the keyboard shortcuts.
 
 </FONT></P><PRE CLASS="verbatim">    ;; Uncomment to enable typerex command menu by right click
     ;;(setq ocp-menu-trigger [mouse-3])
-</FONT></PRE><H3 CLASS="subsection"><A NAME="htoc12">1.3.2</A>&#XA0;&#XA0;TypeRex syntax coloring</H3><P>By default, TypeRex proposes a new syntax coloration for OCaml source files.
-You may disable it by setting <CODE>ocp-syntax-coloring</CODE> to <CODE>nil</CODE> instead of <CODE>t</CODE>. Alternatively, you can change the coloring theme to look almost like Tuareg mode (with minor improvements and differences) by setting <CODE>ocp-theme</CODE> to <CODE>"tuareg_like"</CODE>.
-</P><H3 CLASS="subsection"><A NAME="htoc13">1.3.3</A>&#XA0;&#XA0;Auto-completion</H3><P>A (still very primitive) contextual identifier completion feature is
+</FONT></PRE><H3 CLASS="subsection"><A NAME="htoc12">1.3.2</A>&#XA0;&#XA0;Automatic indentation</H3><P>
+TypeRex currently uses the Tuareg indentation mechanism. To get a
+result closer to the OCaml programming guidelines described at
+<A HREF="http://caml.inria.fr/resources/doc/guides/guidelines.en.html"><TT>http://caml.inria.fr/resources/doc/guides/guidelines.en.html</TT></A>
+Some users prefer to indent slightly less, which is achieved with:
+
+</FONT></P><PRE CLASS="verbatim">    (setq typerex-let-always-indent nil)
+    (setq typerex-with-indent 0)
+    (setq typerex-function-indent 0)
+    (setq typerex-fun-indent 0)
+</FONT></PRE><P>
+Another reasonable choice regarding <CODE>if-then-else</CODE> is:
+
+</FONT></P><PRE CLASS="verbatim">    (setq typerex-if-then-else-indent 0)
+</FONT></PRE><H3 CLASS="subsection"><A NAME="htoc13">1.3.3</A>&#XA0;&#XA0;TypeRex syntax coloring</H3><P>By default, TypeRex proposes a new syntax coloration for OCaml source files.
+You may disable syntax coloring by setting <CODE>ocp-syntax-coloring</CODE> to <CODE>nil</CODE> instead of <CODE>t</CODE>. Alternatively, you can change the coloring theme to look almost like Tuareg mode (with minor improvements and differences) by setting <CODE>ocp-theme</CODE> to <CODE>"tuareg_like"</CODE>. You may also set <CODE>ocp-theme</CODE> to <CODE>"tuareg"</CODE> to use the actual
+Tuareg implementation.
+</P><H3 CLASS="subsection"><A NAME="htoc14">1.3.4</A>&#XA0;&#XA0;Auto-completion</H3><P>A (still very primitive) contextual identifier completion feature is
 provided, relying on the Emacs Auto Complete Mode written by Tomohiro
 Matsuyama. It can be enabled by uncommenting the following lines in
 <CODE>.emacs</CODE>:</P><PRE CLASS="verbatim">    ;; AutoComplete
@@ -143,7 +182,7 @@ trigger key.
 predefined ones, or set the auto-complete configuration variables
 directly, but then make sure to set <CODE>auto-complete-keys</CODE> to
 <CODE>nil</CODE>. See the Auto Complete Mode user manual for more details on
-the corresponding configuration.</P><H3 CLASS="subsection"><A NAME="htoc14">1.3.4</A>&#XA0;&#XA0;Reconfiguring paths</H3><P>The values of all the paths described in the following are determined
+the corresponding configuration.</P><H3 CLASS="subsection"><A NAME="htoc15">1.3.5</A>&#XA0;&#XA0;Reconfiguring paths</H3><P>The values of all the paths described in the following are determined
 at configure time, so normally you should not need to change them,
 unless you didn&#X2019;t perform the install step.</P><H4 CLASS="subsubsection">Emacs lisp directory</H4><P>
 The directory in which the TypeRex (and auto-complete) lisp code is
@@ -165,7 +204,8 @@ the OCaml standard library at runtime. They look at the following
 options, in decreasing priority order, to determine the appropriate
 directory:
 </P><OL CLASS="enumerate" type=1><LI CLASS="li-enumerate">
-<CODE>OCAMLLIB</CODE> environment variable
+<CODE>typerex-library-path</CODE>, if specified in <CODE>.emacs</CODE>
+</LI><LI CLASS="li-enumerate"><CODE>OCAMLLIB</CODE> environment variable
 </LI><LI CLASS="li-enumerate"><CODE>CAMLLIB</CODE> environment variable
 </LI><LI CLASS="li-enumerate">option <CODE>ocamllib</CODE> in &#X223C;<CODE>/.ocp/ocaml.conf</CODE>
 </LI><LI CLASS="li-enumerate">the value determined by the configure script when building typerex.

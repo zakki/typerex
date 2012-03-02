@@ -21,7 +21,6 @@ let verbose = ref false
 let rtt = ref false
 let nortt = ref false
 let save_types = ref false
-let save_last_compiled = ref false
 let ocp_type = ref "ocp-type"
 let ocamlc = ref "ocamlc"
 let ocamlopt = ref "ocamlopt"
@@ -113,24 +112,6 @@ let exec command argv =
       prerr_endline command;
     Sys.command command
 
-let rec first_existing prefix = function
-  | [] -> raise Not_found
-  | suffix :: suffixes ->
-    let f = prefix ^ suffix in
-    if Sys.file_exists f then
-      f
-    else
-      first_existing prefix suffixes
-
-let source_of = function
-  | `mli f ->
-    (try first_existing (Filename.chop_extension f) [".mly"]
-     with Not_found -> f)
-  | `ml f ->
-    (try first_existing (Filename.chop_extension f) [".mly" ; ".mll"]
-     with Not_found -> f)
-  | `impl f | `intf f -> f
-
 let wrap backend compiler args =
   let set f = List.mem f args in
   let sources = extract_sources args in
@@ -138,7 +119,7 @@ let wrap backend compiler args =
     "-config"; "-v"; "-version"; "-vnum"; "-warn-help"; "-where";
     "-help" ; "--help"
   ] in
-  let compile = not (stop || set "-a") && sources <> [] || set "-pack"
+  let compile = not (stop (*|| set "-a"*)) && sources <> [] || set "-pack"
   and link = not (stop || set "-c" || set "-pack" || set "-a" || set "-i")
   and kept =
     List.filter (function a -> List.mem a ["-nostdlib"; "-nopervasives"]) args
@@ -182,39 +163,30 @@ let wrap backend compiler args =
       | 0 -> () (* if !verbose then prerr_endline "ocp-type completed" *)
       | n -> Printf.eprintf "ocp-type exited with code %d\n%!" n
   );
-  if code = 0 && !save_last_compiled then
-    List.iter
-      (function input ->
-        let f = source_of input in
-	ignore (exec "cp" [f ; f ^ ".last_compiled"]))
-      sources;
   exit code
 
 let options =
-  let open Arg in
-  align [
-    "-save-types", Set save_types,
+(*  let open Arg in *)
+  Arg.align [
+    "-save-types", Arg.Set save_types,
     " Save typedtrees using ocp-type";
 
-    "-no-wrap-camlp4", Clear wrap_camlp4,
+    "-no-wrap-camlp4", Arg.Clear wrap_camlp4,
     " Do not append '-printer Camlp4AstDumper' to camlp4 preprocessor commands ";
 
-    "-save-last-compiled", Set save_last_compiled,
-    " (deprecated) backup source file after successful compilation";
-
-    "-with-ocp-type", String (( := ) ocp_type),
+    "-with-ocp-type", Arg.String (( := ) ocp_type),
     " specify the ocp-type command";
 
-    "-with-ocamlc", String (( := ) ocamlc),
+    "-with-ocamlc", Arg.String (( := ) ocamlc),
     " specify the ocamlc command";
 
-    "-with-ocamlopt", String (( := ) ocamlopt),
+    "-with-ocamlopt", Arg.String (( := ) ocamlopt),
     " specify the ocamlopt command";
 
-    "-with-ocamlc.opt", String (( := ) ocamlc_opt),
+    "-with-ocamlc.opt", Arg.String (( := ) ocamlc_opt),
     " specify the ocamlc.opt command";
 
-    "-with-ocamlopt.opt", String (( := ) ocamlopt_opt),
+    "-with-ocamlopt.opt", Arg.String (( := ) ocamlopt_opt),
     " specify the ocamlopt.opt command";
 (*
     "-rtt", Set rtt,
@@ -226,7 +198,7 @@ let options =
   -rtt                 Enable runtime types using the rtt pre-processor
   -nortt               Compile normally with stub implementation of rtt
 *)
-    "-v", Set verbose,
+    "-v", Arg.Set verbose,
     " Print executed commands to error output";
 
     Typerex_config.version;

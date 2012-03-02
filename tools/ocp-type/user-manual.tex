@@ -43,3 +43,36 @@ option, which should output either
 Note that the third option is better than the second one with respect
 to locations (the accuracy of which is instrumental to \typerex\
 working).
+
+\subsubsection*{Libraries}
+
+\verb!ocp-type! accepts the special form
+{\verbsize\begin{verbatim}
+    ocp-type -save-types -a <units> -o <target>
+\end{verbatim}}
+where
+\begin{itemize}
+\item the argument units may be \verb!cmi!, \verb!cmo!,  \verb!cmti!, \verb!cmt!, \verb!mli!, or  \verb!ml! files, and
+\item the target is ignored.
+\end{itemize}
+Only arguments ending in \verb!ml! or \verb!mli! will be considered,
+and typed into \verb!cmt! or \verb!cmti! files.
+
+\subsubsection*{Module packs}
+
+\verb!ocp-type! accepts the special form
+{\verbsize\begin{verbatim}
+    ocp-type -save-types -pack <units> -o <target>
+\end{verbatim}}
+where
+\begin{itemize}
+\item the argument units may be \verb!cmi!, \verb!cmo!,  \verb!cmti!, \verb!cmt!, \verb!mli!, or  \verb!ml! files, and
+\item the target may be a \verb!cmo! or \verb!cmt! file.
+\end{itemize}
+Howerver, input will always look at \verb!cmt! or \verb!cmti! (or
+\verb!cmi! as a fallback) files (possibly generating them if \verb!ml!
+or \verb!mli!  are given), and the output will always be written in a
+\verb!cmt! file.  If a \verb!mli! file exists for the name of the
+pack, then \verb!ocp-type! will look for a compiled interface file for
+it in \verb!cmti! format (or \verb!cmi! as a fallback) and match the
+result of packing the arguments against this signature.

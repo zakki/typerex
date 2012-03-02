@@ -15,19 +15,19 @@
 ;                                                                        ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; ocp-wizard additional conventions + server startup
+;; ocp-wizard additional conventions + server startup
 
-;   Functions owz-string-command and checked-string-command inplement
-;   an additional ocp-wizard specific convention for encoding failure
-;   (exception OwzFailure) and unexpected errors. The former raises
-;   the lisp exception owz-failure and owz-error; the latter reports
-;   them in the minibuffer.
+;;   Functions owz-string-command and checked-string-command inplement
+;;   an additional ocp-wizard specific convention for encoding failure
+;;   (exception OwzFailure) and unexpected errors. The former raises
+;;   the lisp exception owz-failure and owz-error; the latter reports
+;;   them in the minibuffer.
 
-; - Callbacks are just lisp forms that are simply evaluated. Therefore,
-;   implementing the request processing just amounts to binding all
-;   symbols which may appear in the received forms. Failure is encoded
-;   by the two special messages "CALLBACK_READ_ERROR\n" and
-;   "ERROR_IN_CALLBACK\n<error contents as a form>\n".
+;; - Callbacks are just lisp forms that are simply evaluated. Therefore,
+;;   implementing the request processing just amounts to binding all
+;;   symbols which may appear in the received forms. Failure is encoded
+;;   by the two special messages "CALLBACK_READ_ERROR\n" and
+;;   "ERROR_IN_CALLBACK\n<error contents as a form>\n".
 
 (defconst callback-read-error "CALLBACK_READ_ERROR"
   "represents an error when reading a callback")
@@ -46,7 +46,7 @@
 (put 'owz-error 'error-message "OCP Wizard unexpected error")
 
 (defun owz-string-command (c)
-  (let ((res (string-command c)))
+  (let ((res (ocp-rpc-string-command c)))
     (if (and
          (>= (length res) 6)
          (string= (substring res 0 6) "Error\n"))
@@ -67,7 +67,8 @@
      (progn (message "%s" (cadr cond)) nil))
     ))
 
-(defun process-callback (connection-buffer)
+;; Provides the callback handler required by OCP RPC
+(defun ocp-rpc-process-callback (connection-buffer)
   (condition-case nil
       (let ((callback (read connection-buffer)))
         ;;(message "received command %s" callback)
@@ -86,7 +87,7 @@
     (error callback-read-error))
   )
 
-(defvar server-port 0
+(defvar typerex-server-port 0
   "port number for the ocp-wizard server")
 
 (defcustom ocp-server-command "ocp-wizard"
@@ -104,6 +105,14 @@
 
 (defvar ocp-wizard-server-process nil "the ocp-wizard server process")
 
+(defvar typerex-server-version nil "version of ocp-wizard server")
+
+(defun ocp-config ()
+  (let ((config (read (checked-string-command  "version"))))
+    (setq typerex-server-version (cdr (assoc 'version config)))
+    (setq typerex-library-path (cdr(assoc 'ocamllib config)))
+    config))
+
 (defun ocp-restart-server ()
   "(Re-)Start the TypeRex server, killing any existing one"
   (interactive)
@@ -114,32 +123,41 @@
   (mapc
    (lambda (b) (with-current-buffer b (reset-tokenization)))
    (buffer-list))
-    (setq server-port (start-rpc-server))
-    (message "Listening on port %d" server-port)
+    (setq typerex-server-port (ocp-rpc-start-server))
+    (message "Listening on port %d" typerex-server-port)
     (message "Starting TypeRex server '%s'" ocp-server-command)
     (let ((line
            (concat
-; This output should be empty: logging is in ~/.ocp-wizard-log
+            (if typerex-library-path (concat"OCAMLLIB=" typerex-library-path " ") "")
             ocp-server-command
             (if (eq ocp-debug t) " -debug all"
               (if (eq ocp-debug nil) ""
                 (concat " -debug " ocp-debug)))
             (if ocp-dont-catch-errors " -dont-catch-errors" "")
             (if ocp-profile (concat " -profile " ocp-profile) "")
-            (if (eq ocp-theme nil) "" (concat " -coloring-theme " ocp-theme))
+            (if (or (eq ocp-theme nil) (string= ocp-theme "tuareg"))
+                ""
+              (concat " -coloring-theme " ocp-theme))
             " -backtrace"
-            " emacs-server " (int-to-string server-port))))
+            " emacs-server " (int-to-string typerex-server-port))))
       (message "Running: %s" line)
       (setq ocp-wizard-server-process
             (start-process-shell-command
+             ;; The output should be empty: logging is in ~/.ocp-wizard-log
              "typerex-server" "*typerex-server-stdout-stderr*" line)))
     (set-process-query-on-exit-flag ocp-wizard-server-process nil)
     (message "Waiting for TypeRex server to connect")
     (let ((waited-time 0))
-      (while (and (< waited-time 1.5) (eq connection nil))
+      (while (and (< waited-time 1.5) (eq ocp-rpc-connection nil))
         (sleep-for 0.01)
         (setq waited-time (+ waited-time 0.01)))
-;    (start-connection server-port)
-      (if (eq connection nil)
+      (if (eq ocp-rpc-connection nil)
           (message "Timeout while waiting for TypeRex server!!!")
-        (message "Connection established with TypeRex server"))))
+        (message "Connection established with TypeRex server")
+        (message "Checking version")
+        (ocp-config)
+        (if (string= typerex-version typerex-server-version)
+            (message "TypeRex-%s started" typerex-version)
+          (message "Warning! TypeRex server version mismatch: %s <> %s"
+                   typerex-server-version typerex-version))
+        )))

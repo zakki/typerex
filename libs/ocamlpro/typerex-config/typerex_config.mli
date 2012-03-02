@@ -26,6 +26,9 @@ val ocamllib : string
 (** Bytecode interpreter command. *)
 val runner : string
 
+(** Typerex version *)
+val typerex_version : string
+
 (** Typerex version args *)
 val version : string * Arg.spec * Arg.doc
 
