@@ -55,6 +55,9 @@ type tface = [
 | `interactive_error
 ]
 
+(** Caml-mode customizable faces *)
+type cface = [ `doccomment | `stop ]
+
 (** Emacs Font Lock predefined faces *)
 type fface = [
   `comment
@@ -77,6 +80,7 @@ type fface = [
 type face = [
   `desc of face_attr list
 | `typerex of tface (** tuareg-mode faces *)
+| `caml of cface (** caml-mode faces *)
 | `font_lock of fface (** font-lock predefined *)
 | `ocp of string (* named OCP faces *)
 | `none (** used to clear the face *)

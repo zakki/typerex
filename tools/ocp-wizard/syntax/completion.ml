@@ -33,29 +33,40 @@ type env = {
     ([ `ident of Env_untyped.path_sort | `nonIdent of non_ident ] *
      int StringMap.t
     ) list;
-  opens : string list
+  opens : string list;
+  env : Env.t
 }
 
 type local_envs = {
   mutable local_env : env array;
-  mutable local_env_bound : int
+  mutable local_env_bound : int;
+  program : (Program.program * Program.source_file_id) Lazy.t
 }
 
 let non_ident_kinds = [Method ; Variant ; TypeVariable ; Label]
 
-let initial_env = {
+let create_initial_env program source_id = {
   idents =
     List.map
       (function kind -> kind, StringMap.empty)
       (List.map (function k -> `ident k) Env_untyped.all_kinds @
          List.map (function k -> `nonIdent k) non_ident_kinds);
-  opens = []
+  opens = [];
+  env =
+    try
+      debugln "trying source env";
+      ProgramCache.source_env program (Program.find_source program source_id)
+    with _ ->
+      debugln "using initial environment";
+      Env.initial
 }
 
-let initial_env () = {
-  local_env = [| initial_env |];
-  local_env_bound = 0
-}
+let initial_env program =
+  {
+    local_env = [| |];
+    local_env_bound = -1;
+    program = program
+  }
 
 let invalidate_env_after envs pos =
   envs.local_env_bound <- min envs.local_env_bound pos
@@ -167,6 +178,17 @@ let classify_ident ~before = function
          | _ -> `ident))
   | _ -> None
 
+let try_open id env =
+  try
+    let p, sg = Env.lookup_module (Longident.Lident id) env in
+    match sg with
+      | Types.Mty_signature sg -> Env.open_signature p sg env
+      | _ -> env
+  with e ->
+    debugln "error opening %s for completion: %s\n%s"
+      id (Printexc.to_string e) (Printexc.get_backtrace ());
+    env
+
 let insert_token env bound before token =
   match token with
     | Parser.LIDENT i | Parser.UIDENT i | Parser.LABEL i | Parser.OPTLABEL i ->
@@ -185,17 +207,22 @@ let insert_token env bound before token =
               else
                 entry)
             env.idents
-        and opens =
+        and opens, env =
           (match before with
             | (Parser.OPEN | Parser.INCLUDE) :: _ ->
             (* This is wrong with open M.N *)
-              id :: env.opens
-            | _ -> env.opens)
-        in {idents = idents; opens = opens}
+              id :: env.opens, try_open id env.env
+            | _ -> env.opens, env.env)
+        in {idents = idents; opens = opens ; env = env}
       else env
     | _ -> env
 
 let local_env contents local_env pos =
+  if local_env.local_env_bound < 0 then (
+    let program, source_id = Lazy.force local_env.program in
+    local_env.local_env <- [|create_initial_env program source_id|];
+    local_env.local_env_bound <- 0
+  );
   if Array.length local_env.local_env <= pos then (
     let local_envs =
       Array.create
@@ -225,7 +252,7 @@ let local_env contents local_env pos =
   local_env.local_env.(pos)
 
 let collect_in_buffer ~prefix contents local_envs pos =
-  let {idents = idents ; opens = opens} = local_env contents local_envs pos in
+  let env = local_env contents local_envs pos in
   List.map
     (function kind, map ->
       let l =
@@ -240,8 +267,9 @@ let collect_in_buffer ~prefix contents local_envs pos =
       in
       let l = List.sort (fun (_, p) (_, p') -> p - p') l in
       kind, List.map fst l)
-    idents,
-  opens
+    env.idents,
+  env.opens,
+  env.env
 
 let collect_in_env program kinds prefix lid env =
   let idents kind =
@@ -325,49 +353,10 @@ let completions program source_id contents local_envs pos =
   in
   debugln "complete token %S at its %dth char"
     contents.t_buf.(pos2pointer contents token_to_complete).string offset;
-  let prefix, kind =
-    any_completion_context contents token_to_complete offset in
-(*
-  let prefix = String.before prefix offset in
-*)
+  let prefix, kind = any_completion_context contents token_to_complete offset in
   debugln "complete ident prefix %S of kind %s" prefix (kind2string kind);
-  let idents, opens =
+  let idents, opens, env =
     collect_in_buffer ~prefix contents local_envs (contents.t_pre - 1) in
-  (* may not be in the program ! *)
-  debugln "looking for source";
-  let env =
-    try
-      debugln "trying source env";
-      ProgramCache.source_env program (Program.find_source program source_id)
-    with _ ->
-(*
-      try
-        debugln "trying program env";
-        ProgramCache.program_env program with _ ->
-*)
-        debugln "using initial environment";
-        Env.initial in
-  debugln "found source";
-  let env =
-    List.fold_left
-      (fun env id ->
-        try
-          let p, sg =
-            Env.lookup_module (Longident.Lident id) env in
-          (*
-            let sg = module_lid2sig  -> Env.t -> Longident.t -> ident_context * Types.signature
-          *)
-          match sg with
-            | Types.Mty_signature sg ->
-              Env.open_signature p sg env
-            | _ -> env
-        with _ -> env)
-      env
-      opens
-  in
-  (*
-    let load_path = Program.source_load_path ~prefix:`absolute program source in
-  *)
   let lid, locals =
     match kind with
       | Member (lid, _) ->

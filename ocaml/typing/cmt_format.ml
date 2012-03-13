@@ -169,12 +169,12 @@ let rec first_existing prefix = function
 let generated sourcefile cmtfile =
   if Filename.check_suffix cmtfile ".cmti" then
     try
-      Some (first_existing (Filename.chop_extension sourcefile) [".mly", Ocamlyacc])
+      Some (first_existing (Misc.chop_extension_if_any sourcefile) [".mly", Ocamlyacc])
     with Not_found -> None
   else
     try
       Some
-        (first_existing (Filename.chop_extension sourcefile)
+        (first_existing (Misc.chop_extension_if_any sourcefile)
            [".mly", Ocamlyacc ; ".mll", Ocamllex])
     with Not_found -> None
 
@@ -258,7 +258,7 @@ let save_cmt modname filename binary_annots sourcefile packed_modules sg =
           };
           generated = generated f filename
         }
-        | None -> { source_file = {filename; contents = ""} ; generated = None }
+        | None -> { source_file = {filename = filename; contents = ""} ; generated = None }
     in
     output_value oc source_info;
     close_out oc;

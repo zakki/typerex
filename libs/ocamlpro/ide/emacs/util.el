@@ -77,8 +77,7 @@
 
 (defun highlight-regions (forever regions)
   (let ((overlays (mapcar 'highlight-region regions)))
-    (if (eq forever t)
-        ()
+    (unless (eq forever t)
       (do-at-next-input
        (lambda (ovs) (mapc 'delete-overlay ovs)) overlays))
     nil))

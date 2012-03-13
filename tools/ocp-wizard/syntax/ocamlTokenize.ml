@@ -38,7 +38,8 @@ type extended_token =
 type token = {
   token : extended_token;
   string : string;
-  length : int (* temporary *)
+  length : int; (* temporary *)
+  mutable faces : (int * int * Face.face) list
 }
 
 (* We record the position in the gap buffer of the start of every
@@ -61,7 +62,8 @@ let set_unmatched_double_quote state gb pos =
 let t_pad = {
   token = Pad;
   string = "<pad>";
-  length = 0
+  length = 0;
+  faces = []
 }
 
 let string t =
@@ -71,6 +73,11 @@ let string t =
 
 let length t = String.length t.string
 let length t = t.length (* temporary *)
+
+let set_faces t faces = t.faces <- faces
+
+let equals t t' =
+  t.token = t'.token && t.string = t'.string && t.length = t'.length
 
 (* Prepend a given list of tokens with the preceeding white space and
    comments, determined as the segment between start and token_start,
@@ -83,7 +90,8 @@ let add_white_space gb start ~from token_start t =
     else
       { token = White_space;
         string = String.make length ' ';
-        length = length } ::
+        length = length;
+        faces = [] } ::
         ts
   in
   let tokens_start, tokens =
@@ -102,7 +110,8 @@ let add_white_space gb start ~from token_start t =
 *)
           { token = Comment;
             string = string;
-            length = length } ::
+            length = length;
+            faces = [] } ::
             ts
         in
         b, ts)
@@ -291,7 +300,8 @@ let lexer state ~prefix_start ~modified_end ~find_ahead chars =
     else [
       { token = t;
         string = string;
-        length = length }
+        length = length;
+        faces = [] }
     ]
   in
   let res = add_white_space chars start ~from:current_from token_start t in

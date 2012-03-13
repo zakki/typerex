@@ -20,7 +20,7 @@ open Program
 open Cmt_format
 include Debug.Tag(struct let tag = "simpleProgram" end)
 
-let project_file_names = [".typerex" ; ".ocp-wizard" ; ".ocamlwizard"]
+let project_file_names = [".typerex"]
 
 let plain_impl_extensions = ref [".ml"]
 let plain_intf_extensions = ref [".mli"]
@@ -203,25 +203,35 @@ type project_info = {
   cmt_dir : string option
 }
 
+let rec remove_trailing_sep name =
+  if name <> Filename.dir_sep && String.ends_with name ~suffix:Filename.dir_sep then
+    let len = String.length name - String.length Filename.dir_sep in
+    remove_trailing_sep (String.sub name 0 len)
+  else
+    name
+
 let project_dirs ~permissive ~ignore_project_file ~default_cwd ~stdlib file =
-  let absolute_dir = make_absolute (directory_of file) in
+  let absolute_dir = remove_trailing_sep (make_absolute (directory_of file)) in
+  let stdlib = remove_trailing_sep stdlib in
   try
     if ignore_project_file then raise Not_found;
     let absolute_root, pf, root2here, here2root =
       find_project_file absolute_dir in
     let project_file = parse_project_file ~permissive pf in
-    { absolute_root = absolute_root;
+    { absolute_root = remove_trailing_sep absolute_root;
       here2root = here2root;
       project_file = Some pf;
       root2here = root2here;
-      dirs = project_file.source_dirs;
+      dirs = List.map remove_trailing_sep project_file.source_dirs;
       incs =
-        List.map (Misc.expand_directory stdlib) project_file.include_dirs
+        List.map
+          (function d -> remove_trailing_sep (Misc.expand_directory stdlib d))
+          project_file.include_dirs
       @ (if project_file.nostdlib then [] else [stdlib]);
       exclude = project_file.excluded_names;
       impls = project_file.impl;
       intfs = project_file.intf;
-      cmt_dir = project_file.cmt }
+      cmt_dir = Option.map remove_trailing_sep project_file.cmt }
   with Not_found ->
     { absolute_root = absolute_dir;
       project_file = None;
@@ -365,16 +375,6 @@ let rec find_in_rec ?(root="") acc files f =
 let find_in_rec ?(root="") ~dir f = find_in_rec ~root "" [dir] f
 *)
 
-let exact_matches root cmts sourcefile =
-  List.find_all
-    (function cmt ->
-      try
-        (fst (ProgramCache.read_cmt (concat_if_relative root cmt)))
-          .cmt_source_digest =
-        ProgramCache.cached_digest (concat_if_relative root sourcefile)
-      with _ -> false)
-    cmts
-
 let source_kind2cmt_suffix = function
   | `ml -> ".cmt"
   | `mli -> ".cmti"
@@ -500,7 +500,17 @@ let read_one_unit ~root ?assume ~impl ~intf ~load_path ~exclude prefix ~inc =
     in
     Some (prefix, unit)
 
-let assign_cmt first root cmts assigned_cmts prefix kind typedtree =
+let exact_matches root cmts sourcefile =
+  List.find_all
+    (function cmt ->
+      try
+        (fst (ProgramCache.read_cmt (concat_if_relative root cmt)))
+          .cmt_source_digest =
+        ProgramCache.cached_digest (concat_if_relative root sourcefile)
+      with _ -> false)
+    cmts
+
+let assign_cmt first root cmts ~sources assigned_cmts prefix kind typedtree =
   let sourcefile_suffix =
     match kind with
       | `ml -> ".ml"
@@ -508,20 +518,24 @@ let assign_cmt first root cmts assigned_cmts prefix kind typedtree =
   in
   let together = prefix ^ source_kind2cmt_suffix kind in
   let cmts = Hashtbl.find_all cmts (Filename.basename together) in
-  match cmts, lazy (exact_matches root cmts (prefix ^ sourcefile_suffix)) with
+  match
+    cmts,
+    Hashtbl.find_all sources (Filename.basename prefix),
+    lazy (exact_matches root cmts (prefix ^ sourcefile_suffix))
+  with
     | _ when typedtree <> together -> typedtree
-    | [typedtree], _ -> typedtree
-    | _, lazy [typedtree] ->
+    | [typedtree], [_source], _ -> typedtree
+    | _, _, lazy [typedtree] ->
       assert first;
       Hashtbl.add assigned_cmts typedtree ();
       typedtree
     | _ -> typedtree
 
-let assign_cmts_to_unit first root cmts assigned_cmts prefix =
+let assign_cmts_to_unit first root cmts ~sources assigned_cmts prefix =
   let assign kind = function
     | Some file ->
       Some {file with typedtree =
-          assign_cmt first root cmts assigned_cmts prefix kind file.typedtree}
+          assign_cmt first root cmts ~sources assigned_cmts prefix kind file.typedtree}
     | None -> None
   in
   function
@@ -534,17 +548,21 @@ let assign_cmts_to_unit first root cmts assigned_cmts prefix =
       Pack { unit with
         p_interface = assign `mli unit.p_interface;
         p_typedtree =
-          assign_cmt first root cmts assigned_cmts prefix `ml unit.p_typedtree
+          assign_cmt first root cmts ~sources assigned_cmts prefix `ml unit.p_typedtree
       }
     | unit -> unit
 
 let assign_cmts root cmts units =
+  let sources = Hashtbl.create 100 in
+  List.iter
+    (function prefix, _ -> Hashtbl.add sources (Filename.basename prefix) prefix)
+    units;
   let assigned_cmts = Hashtbl.create 100 in
   (* assignement for sources with only one match or only one exact match *)
   let units =
     List.map
       (function prefix, unit ->
-        prefix, assign_cmts_to_unit true root cmts assigned_cmts prefix unit)
+        prefix, assign_cmts_to_unit true root cmts ~sources assigned_cmts prefix unit)
       units
   in
   (* Second assignement for sources with saeveral matches, none exact,
@@ -561,7 +579,7 @@ let assign_cmts root cmts units =
     (function prefix, unit ->
       prefix,
       assign_cmts_to_unit false
-        root unassigned_cmts (Hashtbl.create 100) prefix unit)
+        root unassigned_cmts ~sources (Hashtbl.create 100) prefix unit)
     units
 
 exception NotASourceFile of string

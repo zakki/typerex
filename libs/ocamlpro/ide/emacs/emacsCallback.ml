@@ -27,6 +27,69 @@ let quit = "Quit"
 exception CallbackReadError of string
 exception ErrorInCallback of string
 
+let property_list props =
+  Printf.sprintf "(%s)"
+    (String.concat " "
+       (List.map
+          (function
+            | `face face -> Printf.sprintf "face ,%s" (face_emacs_name face)
+            | `help_echo (Some s) -> Printf.sprintf "help-echo ,%S" s
+            | `help_echo None -> Printf.sprintf "help-echo ,nil"
+            | `fontified -> "fontified t"
+            | `font_lock_multiline -> "jit-lock-defer-multiline t"
+                (* "font-lock-multiline t" *))
+          props))
+
+  let region_list rs =
+    String.concat " "
+      (List.map
+         (function x, y ->
+           Printf.sprintf "(%d %d)" (x+1) (y+1))
+         rs)
+
+(* More efficient *)
+  let region_list rs =
+    let buf = Buffer.create 1024 in
+    List.iter
+      (function x, y ->
+        Buffer.add_char buf  '(';
+        Buffer.add_string buf (string_of_int (x+1));
+        Buffer.add_char buf  ' ';
+        Buffer.add_string buf (string_of_int (y+1));
+        Buffer.add_char buf  ')')
+      rs;
+    Buffer.contents buf
+
+  let propertize_region_lists_command ?(unit=`byte) rs =
+    Printf.sprintf "(propertize-region-lists-%s `(%s))"
+      (match unit with
+        | `byte -> "byte"
+        | `char -> "char")
+      (String.concat " "
+         (List.map
+            (function properties, regions ->
+              Printf.sprintf "(%s (%s))"
+                (property_list properties)
+                (Profile.time_call "region_list" region_list regions))
+            rs))
+
+  let pos ?(unit=`byte) n =
+    let pos = Printf.sprintf "(check-position %d)" (n+1) in
+    match unit with
+      | `char -> Printf.sprintf "%s" pos
+      | `byte -> Printf.sprintf "(byte-to-position %s)" pos
+
+  let pos' ?(unit=`byte) = function
+    | `lc (l, c) -> Printf.sprintf "(line-column-to-pos %d %d)" l c
+    | `cnum cnum -> pos ~unit cnum
+
+  let regions ?unit rs =
+    String.concat " "
+      (List.map
+         (function face, x, y ->
+           Printf.sprintf "(,%s ,%s ,%s)"
+             (face_emacs_name face) (pos' ?unit x) (pos' ?unit y)) rs)
+
 module Make(Arg : sig
   val connection : Ocp_rpc.tagged_connection
 end) = struct
@@ -68,17 +131,6 @@ end) = struct
   let command_string fmt = command_k parse_string fmt
   let command_unit fmt = command_k ignore fmt
 
-  let pos ?(unit=`byte) n =
-    let pos = Printf.sprintf "(check-position %d)" (n+1) in
-    match unit with
-      | `char -> Printf.sprintf "%s" pos
-      | `byte -> Printf.sprintf "(byte-to-position %s)" pos
-
-  let pos' ?(unit=`byte) = function
-    | `lc (l, c) -> Printf.sprintf "(line-column-to-pos %d %d)" l c
-    | `cnum cnum -> pos ~unit cnum
-
-
   let goto_char ?unit n = command_unit
     "(progn (push (point) buffer-undo-list) (goto-char %s))" (pos ?unit n)
 
@@ -119,30 +171,13 @@ end) = struct
   let set_cleared_buffer fmt =
     Printf.ksprintf (command_unit "(set-cleared-buffer %S)") fmt
 
-  let property_list props =
-    Printf.sprintf "(%s)"
-      (String.concat " "
-         (List.map
-            (function
-              | `face face -> Printf.sprintf "face ,%s" (face_emacs_name face)
-              | `help_echo (Some s) -> Printf.sprintf "help-echo ,%S" s
-              | `help_echo None -> Printf.sprintf "help-echo ,nil"
-              | `fontified -> "fontified t"
-              | `font_lock_multiline -> "jit-lock-defer-multiline t"
-                (* "font-lock-multiline t" *))
-            props))
-
   let highlight ?unit face x y =
     command_unit "(highlight %s %s %s)" (face_emacs_name face) (pos ?unit x) (pos ?unit y)
 
   let highlight_regions ?unit ?(forever = false) rs =
     command_unit "(highlight-regions %s `(%s))"
       (if forever then "t" else "nil")
-      (String.concat " "
-         (List.map
-            (function face, x, y ->
-              Printf.sprintf "(,%s ,%s ,%s)"
-                (face_emacs_name face) (pos' ?unit x) (pos' ?unit y)) rs))
+      (regions ?unit rs)
 
   let highlight ?unit face x y =
       highlight_regions ?unit [face, x, y]
@@ -156,26 +191,6 @@ end) = struct
                 (pos ?unit x) (pos ?unit y) (property_list properties))
             rs))
 
-  let region_list rs =
-    String.concat " "
-      (List.map
-         (function x, y ->
-           Printf.sprintf "(%d %d)" (x+1) (y+1))
-         rs)
-
-(* More efficient *)
-  let region_list rs =
-    let buf = Buffer.create 1024 in
-    List.iter
-      (function x, y ->
-        Buffer.add_char buf  '(';
-        Buffer.add_string buf (string_of_int (x+1));
-        Buffer.add_char buf  ' ';
-        Buffer.add_string buf (string_of_int (y+1));
-        Buffer.add_char buf  ')')
-      rs;
-    Buffer.contents buf
-
   let propertize_region_lists ?(unit=`byte) rs =
     command_unit "(propertize-region-lists-%s `(%s))"
       (match unit with
@@ -188,19 +203,6 @@ end) = struct
                 (property_list properties) (region_list regions))
             rs))
 
-  let propertize_region_lists_command ?(unit=`byte) rs =
-    Printf.sprintf "(propertize-region-lists-%s `(%s))"
-      (match unit with
-        | `byte -> "byte"
-        | `char -> "char")
-      (String.concat " "
-         (List.map
-            (function properties, regions ->
-              Printf.sprintf "(%s (%s))"
-                (property_list properties)
-                (Profile.time_call "region_list" region_list regions))
-            rs))
-
   let remove_properties ?unit b e props =
     command_unit "(remove-list-of-text-properties %s %s `(%s))"
       (pos ?unit b) (pos ?unit e)
@@ -209,43 +211,6 @@ end) = struct
             (function
               | `face -> "face")
             props))
-
-  let return_fontifying_data b e faces helps =
-    let regions =
-      List.map (function face, rs -> [`face face], rs) faces @
-        List.map (function r, help -> [`help_echo (Some help)], [r]) helps in
-    let regions =
-      ([`face `none ; `help_echo None ; `font_lock_multiline], [b, e]) ::
-        regions
-    in
-    let command = propertize_region_lists_command regions in
-    command
-
-  let return_completion_data position ~prefix candidates =
-    Printf.sprintf "(%s (%s))"
-      (pos (position - String.length prefix))
-      (String.concat " "
-         (List.map
-            (function symb, c ->
-              Printf.sprintf "(%S \"%c\")" c symb)
-            candidates))
-
-  let present_grep_results ~root ~contents overlays ~local_overlays ~errors =
-    let current_buffer = buffer_name () in
-    let grep_buffer = "*ocp-wizard-grep*" in
-    set_cleared_buffer "%s" grep_buffer;
-    command_unit "(compilation-minor-mode 1)";
-    cd "%s" root;
-    let errors =
-      match errors with
-        | Some errors -> "\n\n" ^ errors
-        | None -> ""
-    in
-    insert "%s%s" contents errors;
-    command_unit "(display-buffer %S)" grep_buffer;
-    highlight_regions ~forever:true overlays;
-    command_unit "(set-buffer %S)" current_buffer;
-    highlight_regions local_overlays
 
   let show_completions word_beginning completions =
     command_unit

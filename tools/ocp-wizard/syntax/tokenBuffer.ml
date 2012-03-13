@@ -27,6 +27,7 @@ module type TOKEN = sig
   val t_pad : token
   val length : token -> int
   val string : token -> string
+  val equals : token -> token -> bool
   val lexer :
     state ->
     prefix_start:int ->
@@ -128,13 +129,19 @@ let resize gb =
 let insert pos gb c =
   if gb.t_post = gb.t_pre then
     resize gb;
+  let set pos c =
+    if equals gb.t_buf.(pos) c then
+      debugln "unchanged token, no replacement required"
+    else
+      gb.t_buf.(pos) <- c
+  in
   match pos with
     | `before ->
-      gb.t_buf.(gb.t_pre) <- c;
+      set gb.t_pre c;
       gb.t_pre <- gb.t_pre + 1;
     | `after ->
       gb.t_post <- gb.t_post - 1;
-      gb.t_buf.(gb.t_post) <- c
+      set gb.t_post c
 
 let t_length tb = Array.length tb.t_buf + tb.t_pre - tb.t_post
 
@@ -287,7 +294,7 @@ let update_tokens tb prefix_start suffix_end chars_undo =
 
   (* Remove the longest common prefix, and return it. *)
   let rec remove_common prefix = function
-    | x :: u, y :: v when x = y -> remove_common (x :: prefix) (u, v)
+    | x :: u, y :: v when equals x y -> remove_common (x :: prefix) (u, v)
     | u, v -> List.rev prefix, u, v
 
   let replace tb count s =

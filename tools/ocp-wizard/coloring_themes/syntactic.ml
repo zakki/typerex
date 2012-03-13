@@ -17,73 +17,14 @@
 
 open OcpLang
 open Colorize
-open OcamlBuffer
 open OcamlTokenize
 open Parser
-
-(*
-(* Keywords *)
-let governing = `desc [`weight `ultra_bold ; `foreground (`rgb (60, 50, 60))]
-let keyword = `font_lock `keyword
-let open_include = `font_lock `warning
-
-(* Symbols and punctuation *)
-let punctuation = `desc [`weight `ultra_bold]
-let bar_case = `desc [
-  `weight `ultra_bold ; `foreground (`x11 "purple3");
-  `background (`x11 "linen")
-]
-let func = `desc [`weight `ultra_bold ; `foreground (`x11 "purple3")]
-
-(* operators *)
-let op = `desc [`weight `ultra_bold ; `foreground (`x11 "sienna")]
-let op_bool = `desc [`weight `ultra_bold ; `foreground (`x11 "brown")]
-
-(* Literals *)
-let constant = `font_lock `constant
-let string = `font_lock `string
-
-(* ', `, ~, ? *)
-let tag = `desc [`weight `ultra_bold ; `foreground (`x11 "sienna")]
-
-(* Idents *)
-let type_def = `desc [`weight `bold ; `foreground (`x11 "OliveDrab4")]
-let type_occ = `font_lock `ftype
-let type_variable = `desc [`weight `bold ; `foreground (`x11 "dark violet")]
-let cstr_def = `desc [`weight `bold ; `foreground (`x11 "medium aquamarine")]
-let cstr_occ = `font_lock `constant
-let field_def = `desc [`weight `bold ; `foreground (`x11 "medium aquamarine")]
-let field_occ = `font_lock `constant
-let variant = `font_lock `constant
-let val_def = `desc [`weight `bold ; `foreground (`x11 "peru")]
-let val_def_fun = `desc [`weight `bold ; `foreground (`x11 "blue1")]
-let val_occ_fun = `desc [`foreground (`x11 "blue1")]
-let val_occ = `font_lock `variable_name
-let method_def = val_def
-let method_occ = `desc [`foreground (`x11 "saddle brown")]
-let mod_def = `desc [`weight `bold ; `foreground (`x11 "dark orange")]
-let mod_occ = `desc [`foreground (`x11 "dark orange")]
-let builtin = `font_lock `builtin
-
-(* Comments *)
-let comment = `desc [`foreground (`x11 "gray50")]
-let doc = `desc [`foreground (`x11 "steel blue")]
-let doc_title = `desc [
-  `weight `bold ;
-  `foreground (`x11 "black") ; `background (`x11 "light blue")
-]
-let doc_italic = `desc [`slant `italic ; `foreground (`x11 "steel blue")]
-let doc_bold = `desc [`weight `bold ; `foreground (`x11 "steel blue")]
-let doc_stop = `font_lock `warning
-
-(* Lexing error *)
-let error = `typerex `error
-*)
 
 let governing = `ocp "governing"
 let keyword = `ocp "keyword"
 let open_include = `ocp "open-include"
 let punctuation = `ocp "punctuation"
+let op_field = `ocp "op-field"
 let bar_case = `ocp "bar-case"
 let func = `ocp "func"
 let op = `ocp "op"
@@ -161,9 +102,12 @@ let token2face token before after =
     | LBRACKET | RBRACKET | COLONCOLON | LBRACKETBAR | BARRBRACKET
     | GREATERRBRACE | LBRACELESS
     | LBRACKETLESS | LBRACKETGREATER | GREATERRBRACKET
-    | SEMI | COLON | COMMA | DOT | DOTDOT | INFIXOP1 _
+    | SEMI | COLON | COMMA | DOTDOT | INFIXOP1 _
     | UNDERSCORE
       -> punctuation
+
+    | DOT | LESSMINUS | BANG | COLONEQUAL
+      -> op_field
 
     | AMPERAMPER | BARBAR | AMPERSAND | OR
       -> op_bool
@@ -172,7 +116,7 @@ let token2face token before after =
     | INFIXOP2 _ | INFIXOP3 _ | INFIXOP4 _
     | LESS | GREATER | EQUAL | INFIXOP0 _ | PREFIXOP _
       -> op
-    | COLONEQUAL | BANG | LESSMINUS
+
     | OPEN | INCLUDE
       -> open_include
 

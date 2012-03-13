@@ -30,6 +30,7 @@
 (***********************************************************************)
 
 open SimpleConfig
+open OcpLang
 
 let fail fmt = Printf.ksprintf (function s -> prerr_string s ; exit 2) fmt
 
@@ -75,7 +76,14 @@ let config_origin, standard_library =
   try `env_CAMLLIB, Sys.getenv "CAMLLIB" with Not_found ->
     standard_library_default
 
-let standard_library_default = snd standard_library_default
+let rec remove_trailing_sep name =
+  if name <> Filename.dir_sep && String.ends_with name ~suffix:Filename.dir_sep then
+    let len = String.length name - String.length Filename.dir_sep in
+    remove_trailing_sep (String.sub name 0 len)
+  else
+    name
+
+let standard_library_default = remove_trailing_sep (snd standard_library_default)
 
 let check_stdlib_path () =
   let pervasives =

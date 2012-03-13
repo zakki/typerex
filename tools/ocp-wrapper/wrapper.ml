@@ -79,6 +79,12 @@ let rec filter_for_type = function
      with Not_found -> filter_for_type l)
   | "-pp" :: pp :: l ->
     "-pp" :: wrap_pp pp :: filter_for_type l
+  | ("-custom" | "-fPIC" | "-fno-PIC" | "-compact" | "-nodynlink" | "-p" |
+     "-S" | "-shared" | "-vmthread" |
+     "-instr" | "-dcmm" | "-dsel" | "-dcombine" | "-dlive" | "-dspill" |
+     "-dinterf" | "-dprefer" | "-dalloc" | "-dreload" | "-dscheduling" |
+     "-dlinear" | "-dstartup") :: l
+  | ("-dllib" | "-dllpath" | "-inline") :: _ :: l -> filter_for_type l
   | a :: l ->
     (try map_suffix [".cmxa", ".cma" ; ".cmx", ".cmo" ] a
      with Not_found -> a) ::
@@ -117,10 +123,10 @@ let wrap backend compiler args =
   let sources = extract_sources args in
   let stop = List.exists set [
     "-config"; "-v"; "-version"; "-vnum"; "-warn-help"; "-where";
-    "-help" ; "--help"
+    "-help" ; "--help" ; "-i"
   ] in
   let compile = not (stop (*|| set "-a"*)) && sources <> [] || set "-pack"
-  and link = not (stop || set "-c" || set "-pack" || set "-a" || set "-i")
+  and link = not (stop || set "-c" || set "-pack" || set "-a")
   and kept =
     List.filter (function a -> List.mem a ["-nostdlib"; "-nopervasives"]) args
   and source_includes =

@@ -19,8 +19,9 @@
 
 open IDE
 
-module OwzSocketServer : functor
-    (SocketCallback : IDE_Callback.SocketCallback) -> sig
+module OwzSocketServer :
+  functor (SocketCallback : IDE_Callback.SocketCallback) ->
+  functor (Specifics : IDE_Specifics.T) -> sig
       val start_server : in_channel -> out_channel -> 'a
     end
 
@@ -35,3 +36,9 @@ val profile_file : string
 
 (** Command to profile *)
 val profile : string option ref
+
+
+
+
+
+

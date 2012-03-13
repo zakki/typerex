@@ -26,19 +26,52 @@
 
 (defcustom ocp-menu-trigger nil
   "mouse event to trigger the contextual menu (default nil)"
-  :group 'ocp)
+  :group 'typerex-misc)
 
 (defcustom ocp-prefix-key [(control o)]
   "key combination to trigger the command menu (default nil)"
-  :group 'ocp)
+  :group 'typerex-misc)
+
+(defun ocp-wrap-grep (grep)
+  "Show all definitions and references for the current ident"
+  (interactive)
+  (let ((res (checked-string-command grep)))
+    (when res
+      (let* ((res (read res))
+             (root (car res))
+             (contents (cadr res))
+             (overlays (eval (cadr (cdr res))))
+             (local-overlays (eval (cadr (cdr (cdr res)))))
+             (buffer (buffer-name))
+             (grep-buffer "*ocp-wizard-grep*"))
+        (set-cleared-buffer grep-buffer)
+        (compilation-minor-mode 1)
+        (cd root)
+        (insert contents)
+        (display-buffer grep-buffer)
+        (highlight-regions t overlays)
+        (set-buffer buffer)
+        (highlight-regions nil local-overlays)
+        ))))
+
+(defun ocp-grep ()
+  "Show all definitions and references for the current ident"
+  (interactive)
+  (ocp-wrap-grep "grep"))
+
+(defun ocp-grep-toplevel ()
+  "Grep the toplevel module defined by the current source file"
+  (interactive)
+  (ocp-wrap-grep "grep-toplevel"))
 
 (defun ocp-wizard-menu-plugin ()
   "Register the commands as a keyboard menu"
 
   (defvar ocp-prefix (make-sparse-keymap "OCP"))
+  (defvar ocp-prefix-mouse (make-sparse-keymap "OCP"))
   (define-key typerex-mode-map ocp-prefix-key ocp-prefix)
   (when ocp-menu-trigger
-    (define-key typerex-mode-map ocp-menu-trigger ocp-prefix))
+    (define-key typerex-mode-map ocp-menu-trigger ocp-prefix-mouse))
 
   (defvar ocp-prefix-top (make-sparse-keymap "Toplevel"))
   (define-key ocp-prefix-top [(r)] '("Rename" . ocp-rename-toplevel))
@@ -53,6 +86,17 @@
   (define-key ocp-prefix [(a)] '("Alternate definitions" . ocp-cycle-definitions))
   (define-key ocp-prefix [(d)] '("Definition" . ocp-goto-definition))
   (define-key ocp-prefix [(c)] '("Comment" . ocp-comment-definition))
+
+  (define-key ocp-prefix-mouse [(u)] `("Undo (global)" . ocp-undo))
+  (define-key ocp-prefix-mouse [(q)] '("Qualify" . ocp-eliminate-open))
+  (define-key ocp-prefix-mouse [(p)] '("Prune" . ocp-prune-lids))
+  (define-key ocp-prefix-mouse [(x)] '("Toplevel Rename" . ocp-rename-toplevel))
+  (define-key ocp-prefix-mouse [(y)] '("Toplevel Grep" . ocp-grep-toplevel))
+  (define-key ocp-prefix-mouse [(r)] '("Rename" . ocp-rename))
+  (define-key ocp-prefix-mouse [(g)] '("Grep" . ocp-grep))
+  (define-key ocp-prefix-mouse [(a)] '("Alternate definitions" . ocp-cycle-definitions))
+  (define-key ocp-prefix-mouse [(d)] '("Definition" . ocp-goto-definition))
+  (define-key ocp-prefix-mouse [(c)] '("Comment" . ocp-comment-definition))
   )
 
 (defun ocp-action-item (c)
@@ -89,8 +133,9 @@
      ["Switch .ml/.mli" typerex-find-alternate-file t]
    "---"
      ["Compile..." compile t]
-;;     ["On-the-fly compilation" flymake-mode :style toggle :selected flymake-mode
-;;      :help "Turn on/off on-the-fly compilation with ocamlbuild"]
+     ["On-the-fly compilation" flymake-mode :style toggle :selected flymake-mode
+      :help "Turn on/off on-the-fly compilation with ocamlbuild"
+      :visible ocp-flymake-available]
 
      ("Interactive Mode"
       ["Run Caml Toplevel" typerex-run-caml t]
@@ -130,8 +175,9 @@
      ["Customize TypeRex Mode..." (customize-group 'ocp) t]
      ("TypeRex Options" ["Dummy" nil t])
      ("TypeRex Interactive Options" ["Dummy" nil t])
-     ["Short Cuts" typerex-short-cuts]
-     ["TypeRex Mode Help" typerex-help t]
+     ["TypeRex User Manual" typerex-browse-typerex-manual t]
+     ["TypeRex Short Cuts" typerex-help t]
+;;     ["Short Cuts" typerex-short-cuts]
      ["OCaml Reference Manual..." typerex-browse-manual t]
      ["OCaml Library..." typerex-browse-library t]
      ["About" typerex-about t])

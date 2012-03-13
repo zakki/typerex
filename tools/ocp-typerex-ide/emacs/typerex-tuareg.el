@@ -111,15 +111,39 @@
   "Support for the OCaml language."
   :group 'languages)
 
+(defgroup typerex-syntax-coloring nil
+  "Syntax coloring using Font Lock."
+  :group 'ocp)
+
+(defgroup typerex-tuareg-faces nil
+  "Special faces for Tuareg syntax coloring."
+  :group 'typerex-syntax-coloring)
+
+(defgroup typerex-indent nil
+  "TypeRex indentation configuration."
+  :group 'ocp)
+
+(defgroup typerex-auto-complete nil
+  "TypeRex auto completion."
+  :group 'ocp)
+
+(defgroup typerex-interactive nil
+  "TypeRex interactive interpreter configuration."
+  :group 'ocp)
+
+(defgroup typerex-misc nil
+  "TypeRex miscellaneous configuration."
+  :group 'ocp)
+
 ;; Comments
 
 (defcustom typerex-indent-leading-comments t
   "*If true, indent leading comment lines (starting with `(*') like others."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-indent :type 'boolean)
 
 (defcustom typerex-indent-comments t
   "*If true, automatically align multi-line comments."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-indent :type 'boolean)
 
 (defcustom typerex-comment-end-extra-indent 0
   "*How many spaces to indent a leading comment end `*)'.
@@ -128,7 +152,7 @@ If you expect comments to be indented like
           ...
          *)
 even without leading `*', use `typerex-comment-end-extra-indent' = 1."
-  :group 'ocp
+  :group 'typerex-indent
   :type '(radio :extra-offset 8
                 :format "%{Comment End Extra Indent%}:
    Comment alignment:\n%v"
@@ -150,14 +174,14 @@ indented like
           ...
          *)
 \(without leading `*'), set `typerex-comment-end-extra-indent' to 1."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-indent :type 'boolean)
 
 (defcustom typerex-leading-star-in-doc nil
   "*Enable automatic intentation of documentation comments of the form
         (**
          * ...
          *)"
-  :group 'ocp :type 'boolean)
+  :group 'typerex-indent :type 'boolean)
 
 ;; Indentation defaults
 
@@ -167,11 +191,11 @@ indented like
 Global indentation variable (large values may lead to indentation overflows).
 When no governing keyword is found, this value is used to indent the line
 if it has to."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-support-camllight nil
   "*If true, handle Caml Light character syntax (incompatible with labels)."
-  :group 'ocp :type 'boolean
+  :group 'typerex-indent :type 'boolean
   :set '(lambda (var val)
           (setq typerex-support-camllight val)
           (when (boundp 'typerex-mode-syntax-table)
@@ -180,7 +204,7 @@ if it has to."
 
 (defcustom typerex-support-metaocaml nil
   "*If true, handle MetaOCaml syntax."
-  :group 'ocp :type 'boolean
+  :group 'typerex-indent :type 'boolean
   :set '(lambda (var val)
           (setq typerex-support-metaocaml val)
           (when (boundp 'typerex-font-lock-keywords)
@@ -193,7 +217,7 @@ if it has to."
 As an example, set it to false when you have `typerex-with-indent' set to 0,
 and you want `let x = match ... with' and `match ... with' indent the
 same way."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-indent :type 'boolean)
 
 (defcustom typerex-pipe-extra-unindent typerex-default-indent
   "*Extra backward indent for Caml lines starting with the `|' operator.
@@ -217,82 +241,82 @@ for `type' as well. For example, setting them to 0 (and leaving
     X -> ...
   | Y -> ...
   | Z -> ..."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-class-indent typerex-default-indent
   "*How many spaces to indent from a `class' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-sig-struct-align t
   "*Align `sig' and `struct' keywords with `module'."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-indent :type 'boolean)
 
 (defcustom typerex-sig-struct-indent typerex-default-indent
   "*How many spaces to indent from a `sig' or `struct' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-method-indent typerex-default-indent
   "*How many spaces to indent from a `method' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-begin-indent typerex-default-indent
   "*How many spaces to indent from a `begin' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-for-while-indent typerex-default-indent
   "*How many spaces to indent from a `for' or `while' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-do-indent typerex-default-indent
   "*How many spaces to indent from a `do' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-fun-indent typerex-default-indent
   "*How many spaces to indent from a `fun' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-function-indent typerex-default-indent
   "*How many spaces to indent from a `function' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-if-then-else-indent typerex-default-indent
   "*How many spaces to indent from an `if', `then' or `else' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-let-indent typerex-default-indent
   "*How many spaces to indent from a `let' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-in-indent 0 ; typerex-default-indent
   "*How many spaces to indent from a `in' keyword.
 Upstream <http://caml.inria.fr/resources/doc/guides/guidelines.en.html>
 recommends 0, and this is what we default to since 2.0.1
 instead of the historical `typerex-default-indent'."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-match-indent typerex-default-indent
   "*How many spaces to indent from a `match' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-try-indent typerex-default-indent
   "*How many spaces to indent from a `try' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-with-indent typerex-default-indent
   "*How many spaces to indent from a `with' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-rule-indent typerex-default-indent
   "*How many spaces to indent from a `rule' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-type-indent typerex-default-indent
   "*How many spaces to indent from a `type' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-val-indent typerex-default-indent
   "*How many spaces to indent from a `val' keyword."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 ;; Automatic indentation
 ;; Using abbrev-mode and electric keys
@@ -304,7 +328,7 @@ It makes use of `abbrev-mode'.
 
 Many people find eletric keywords irritating, so you can disable them by
 setting this variable to nil."
-  :group 'ocp :type 'boolean
+  :group 'typerex-indent :type 'boolean
   :set '(lambda (var val)
           (setq typerex-use-abbrev-mode val)
           (abbrev-mode val)))
@@ -314,11 +338,11 @@ setting this variable to nil."
 
 Many people find eletric keys irritating, so you can disable them in
 setting this variable to nil."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-indent :type 'boolean)
 
 (defcustom typerex-case-arrow-extra-indent 2
   "*How many spaces to indent from a `->' keyword in a pattern match case."
-  :group 'ocp :type 'integer)
+  :group 'typerex-indent :type 'integer)
 
 (defcustom typerex-electric-close-vector t
   "*Non-nil means electrically insert `|' before a vector-closing `]' or
@@ -327,7 +351,7 @@ setting this variable to nil."
 Many people find eletric keys irritating, so you can disable them in
 setting this variable to nil. You should probably have this on,
 though, if you also have `typerex-electric-indent' on."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-misc :type 'boolean)
 
 ;; TypeRex-Interactive
 ;; Configure via `typerex-mode-hook'
@@ -337,7 +361,7 @@ though, if you also have `typerex-electric-indent' on."
 upon evaluating an expression.
 
 See `comint-scroll-to-bottom-on-output' for details."
-  :group 'ocp :type 'boolean
+  :group 'typerex-interactive :type 'boolean
   :set '(lambda (var val)
           (setq typerex-interactive-scroll-to-bottom-on-output val)
           (when (boundp 'comint-scroll-to-bottom-on-output)
@@ -346,49 +370,53 @@ See `comint-scroll-to-bottom-on-output' for details."
 (defcustom typerex-skip-after-eval-phrase t
   "*Non-nil means skip to the end of the phrase after evaluation in the
 Caml toplevel."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-interactive :type 'boolean)
 
 (defcustom typerex-interactive-read-only-input nil
   "*Non-nil means input sent to the Caml toplevel is read-only."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-interactive :type 'boolean)
 
 (defcustom typerex-interactive-echo-phrase t
   "*Non-nil means echo phrases in the toplevel buffer when sending
 them to the Caml toplevel."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-interactive :type 'boolean)
 
 (defcustom typerex-interactive-input-font-lock t
   "*Non nil means Font-Lock for toplevel input phrases."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-interactive :type 'boolean)
 
 (defcustom typerex-interactive-output-font-lock t
   "*Non nil means Font-Lock for toplevel output messages."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-interactive :type 'boolean)
 
 (defcustom typerex-interactive-error-font-lock t
   "*Non nil means Font-Lock for toplevel error messages."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-interactive :type 'boolean)
 
 (defcustom typerex-display-buffer-on-eval t
   "*Non nil means pop up the Caml toplevel when evaluating code."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-interactive :type 'boolean)
 
-(defcustom typerex-manual-url "http://pauillac.inria.fr/ocaml/htmlman/index.html"
-  "*URL to the Caml reference manual."
-  :group 'ocp :type 'string)
+(defcustom typerex-manual-url "http://caml.inria.fr/pub/docs/manual-ocaml/index.html"
+  "*URL to the OCaml reference manual."
+  :group 'typerex-misc :type 'string)
+
+(defcustom typerex-typerex-manual-url "http://www.typerex.org/manual-ide.html"
+  "*URL to the TypeRex user manual."
+  :group 'typerex-misc :type 'string)
 
 (defcustom typerex-browser 'browse-url
   "*Name of function that displays the Caml reference manual.
 Valid names are `browse-url', `browse-url-firefox', etc."
-  :group 'ocp)
+  :group 'typerex-misc)
 
 (defcustom typerex-library-path nil
   "*Path to the Caml library. If nil, get it from the TypeRex server"
-  :group 'ocp :type 'string)
+  :group 'typerex-misc :type 'string)
 
 (defcustom typerex-definitions-max-items 30
   "*Maximum number of items a definitions menu can contain."
-  :group 'ocp :type 'integer)
+  :group 'typerex-misc :type 'integer)
 
 (defvar typerex-options-list
   '(("Automatic indentation of leading keywords" . 'typerex-use-abbrev-mode)
@@ -421,10 +449,6 @@ Valid names are `browse-url', `browse-url-firefox', etc."
   (defconst typerex-use-syntax-ppss (fboundp 'syntax-ppss)
     "*If nil, use our own parsing and caching."))
 
-(defgroup typerex-faces nil
-  "Special faces for the TypeRex mode."
-  :group 'ocp)
-
 (defconst typerex-faces-inherit-p
   (and (boundp 'face-attribute-name-alist)
        (assq :inherit face-attribute-name-alist)))
@@ -433,7 +457,7 @@ Valid names are `browse-url', `browse-url-firefox', etc."
   '((((background light)) (:foreground "blue" :bold t))
     (t (:foreground "orange" :bold t)))
   "Face description for governing/leading keywords."
-  :group 'typerex-faces)
+  :group 'typerex-tuareg-faces)
 (defvar typerex-font-lock-governing-face
   'typerex-font-lock-governing-face)
 
@@ -442,7 +466,7 @@ Valid names are `browse-url', `browse-url-firefox', etc."
      (:foreground "darkblue" :background "lightgray" :bold t))
     (t (:foreground "steelblue" :background "darkgray" :bold t)))
   "Face description for MetaOCaml staging operators."
-  :group 'typerex-faces)
+  :group 'typerex-tuareg-faces)
 (defvar typerex-font-lock-multistage-face
   'typerex-font-lock-multistage-face)
 
@@ -450,14 +474,14 @@ Valid names are `browse-url', `browse-url-firefox', etc."
   '((((background light)) (:foreground "brown"))
     (t (:foreground "khaki")))
   "Face description for all operators."
-  :group 'typerex-faces)
+  :group 'typerex-tuareg-faces)
 (defvar typerex-font-lock-operator-face
   'typerex-font-lock-operator-face)
 
 (defface typerex-font-lock-error-face
   '((t (:foreground "yellow" :background "red" :bold t)))
   "Face description for all errors reported to the source."
-  :group 'typerex-faces)
+  :group 'typerex-tuareg-faces)
 (defvar typerex-font-lock-error-face
   'typerex-font-lock-error-face)
 
@@ -466,7 +490,7 @@ Valid names are `browse-url', `browse-url-firefox', etc."
      (:foreground "blue4"))
     (t (:foreground "cyan")))
   "Face description for all toplevel outputs."
-  :group 'typerex-faces)
+  :group 'typerex-tuareg-faces)
 (defvar typerex-font-lock-interactive-output-face
   'typerex-font-lock-interactive-output-face)
 
@@ -476,9 +500,23 @@ Valid names are `browse-url', `browse-url-firefox', etc."
     '((((background light)) (:foreground "red3"))
       (t (:foreground "red2"))))
   "Face description for all toplevel errors."
-  :group 'typerex-faces)
+  :group 'typerex-tuareg-faces)
 (defvar typerex-font-lock-interactive-error-face
   'typerex-font-lock-interactive-error-face)
+
+;; caml-faces copied from caml-font.el:
+(defvar caml-font-stop-face
+  (progn
+    (make-face 'caml-font-stop-face)
+    (set-face-foreground 'caml-font-stop-face "White")
+    (set-face-background 'caml-font-stop-face "Red")
+    'caml-font-stop-face))
+
+(defvar caml-font-doccomment-face
+  (progn
+    (make-face 'caml-font-doccomment-face)
+    (set-face-foreground 'caml-font-doccomment-face "Red")
+    'caml-font-doccomment-face))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;                            Support definitions
@@ -753,11 +791,19 @@ Valid names are `browse-url', `browse-url-firefox', etc."
   "*Display fun and -> and such using symbols in fonts.
 This may sound like a neat trick, but note that it can change the
 alignment and can thus lead to surprises."
-  :group 'ocp :type 'boolean)
+  :group 'typerex-syntax-coloring :type 'boolean)
 
 (defcustom ocp-syntax-coloring t
   "If true, enable Font-Lock syntax highlighting"
-  :group 'ocp :type '(boolean))
+  :group 'typerex-syntax-coloring :type '(boolean))
+
+(defcustom ocp-theme nil
+  "coloring theme (one of syntactic, tuareg_like, and tuareg).
+  - syntactic uses the new OCP Faces
+  - tuareg_like and tuareg uses the TypeRex Face, which are the Tuareg
+  tuareg_like is a full re-implementation of Tuareg coloring, with not
+  exactly the same bugs. tuareg is the unchanged tuareg implementation."
+  :group 'typerex-syntax-coloring :type '(string))
 
 (defvar typerex-font-lock-symbols-alist
   (cond ((and (fboundp 'make-char) (fboundp 'charsetp) (charsetp 'symbol))
@@ -1067,63 +1113,29 @@ Regexp match data 0 points to the chars."
 
 ;;;###autoload
 (defun typerex-mode ()
-  "Major mode for editing Caml code.
+  "Major mode for OCaml programming.
 
-Dedicated to Emacs and XEmacs, version 21 and higher. Provides
-- automatic indentation and compilation interface (Tuareg implementation)
+Dedicated to Emacs, (tested with version 23.2.1). Provides
 - font/color highlighting (new implementation)
-- automatic identifier completion (experimental)
+- automatic identifier completion (experimental, disabled by default)
 - identifier browsing
 - refactoring
+And the Tuareg-mode features, including
+- automatic indentation
+- compilation, interactive interpreter, and debugger embedding
 
 Report bugs, remarks and questions to OCamlPro.
 
 
-For customization purposes, you should use `typerex-mode-hook'
-\(run for every file) or `typerex-load-hook' (run once) and not patch
-the mode itself. You should add to your configuration file something like:
-  (add-hook 'typerex-mode-hook
-            (lambda ()
-               ... ; your customization code
-            ))
-For example you can change the indentation of some keywords, the
-`electric' flags, Font-Lock colors... Every customizable variable is
-documented, use `C-h-v' or look at the mode's source code.
-
-`custom-ocp.el' is a sample customization file for standard changes.
-You can append it to your `.emacs' or use it as a tutorial.
+For customization purposes, you can use `typerex-mode-hook'
+\(run for every file) or `typerex-load-hook' (run once). See the Tuareg-mode
+documentation.
 
 `M-x camldebug' FILE starts the Caml debugger camldebug on the executable
 FILE, with input and output in an Emacs buffer named *camldebug-FILE*.
 
 A TypeRex Interactive Mode to evaluate expressions in a toplevel is included.
 Type `M-x typerex-run-caml' or see special-keys below.
-
-For the best indentation experience, some elementary rules must be followed.
-  - Because the `function' keyword has a special indentation (to handle
-    case matches) use the `fun' keyword when no case match is performed.
-  - In OCaml, `;;' is no longer necessary for correct indentation,
-    except before top level phrases not introduced by `type', `val', `let'
-    etc. (i.e., phrases used for their side-effects or to be executed
-    in a top level.)
-  - Long sequences of `and's may slow down indentation slightly, since
-    some computations (few) require to go back to the beginning of the
-    sequence. Some very long nested blocks may also lead to slow
-    processing of `end's, `else's, `done's...
-  - Multiline strings are handled properly, but you may prefer string
-    concatenation `^' to break long strings (the C-j keystroke can help).
-  - Comment indentation is often a matter of taste and context, yet
-    sophisticated heuristics provide reasonable indentation in most cases.
-    When inserting a comment right before the code it refers to, it is
-    generally expected that this comment will be aligned with the folowing
-    code; to enforce this, leave a blank line before the comment.
-
-Known bugs:
-  - When writting a line with mixed code and comments, avoid putting
-    comments at the beginning or middle of the text. More precisely,
-    writing comments immediately after `=' or parentheses then writing
-    some more code on the line leads to indentation errors. You may write
-    `let x (* blah *) = blah' but should avoid `let x = (* blah *) blah'.
 
 Short cuts for the TypeRex mode:
 \\{typerex-mode-map}
@@ -1174,7 +1186,8 @@ Short cuts for interactions with the toplevel:
           imenu-extract-index-name-function 'typerex-imenu-extract-index-name))
 
   ;; Hooks for typerex-mode, use them for typerex-mode configuration
-  (if ocp-syntax-coloring (typerex-install-font-lock))
+  (if (and ocp-syntax-coloring (not (string= ocp-theme "caml")))
+      (typerex-install-font-lock))
   (run-hooks 'typerex-mode-hook)
   (when typerex-use-abbrev-mode (abbrev-mode 1))
   (message nil))
@@ -3749,10 +3762,15 @@ Short cuts for interaction within the toplevel:
 ;; From M. Quercia
 
 (defun typerex-browse-manual ()
-  "*Browse Caml reference manual."
+  "*Browse OCaml reference manual."
   (interactive)
   (setq typerex-manual-url (read-from-minibuffer "URL: " typerex-manual-url))
   (funcall typerex-browser typerex-manual-url))
+
+(defun typerex-browse-typerex-manual ()
+  "*Browse TypeRex user manual."
+  (interactive)
+  (funcall typerex-browser typerex-typerex-manual-url))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;                             Browse Library
@@ -3975,6 +3993,3 @@ key-bindings or hack Font-Lock keywords...")
 (run-hooks 'typerex-load-hook)
 
 (provide 'typerex)
-;; For compatibility with caml support modes
-;; you may also link caml.el to ocp.el
-(provide 'caml)

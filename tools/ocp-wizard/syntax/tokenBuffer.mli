@@ -30,6 +30,7 @@ module type TOKEN = sig
   val t_pad : token (** Used to fill the gap. May be anything *)
   val length : token -> int (** character length of the token *)
   val string : token -> string (** Used for debugging only *)
+  val equals : token -> token -> bool
 
   (** [lexer state ~prefix_start ~modified_end ~find_ahead gb] must
       return a lexing function which will lexe the gap buffer [gb]
@@ -128,13 +129,3 @@ module Make : functor (Token : TOKEN) -> sig
   include T
 
 end
-
-
-
-
-
-
-
-
-
-

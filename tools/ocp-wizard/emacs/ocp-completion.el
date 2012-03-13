@@ -22,7 +22,7 @@
 
 (defcustom auto-complete-keys nil
   "If set, simultaneously specifies a set of keys for auto-completion"
-  :group 'ocp :type '(symbol))
+  :group 'typerex-auto-complete :type '(symbol))
 
 ;;(eval-when-compile
   (require 'auto-complete-config nil t)

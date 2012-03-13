@@ -21,8 +21,9 @@
 open Env
 
 let versions = [
-  Config.cmi_magic_number, ("Current", Env.input_cmi);
+  Config.cmi_magic_number, ("Current", input_cmi);
   V3120_types.cmi_magic_number, ("3.12", V3120_input.input_cmi);
+  V3112_types.cmi_magic_number, ("3.11", V3112_input.input_cmi);
 (*
   Types3_11.cmi_magic_number, ("3.11", Types3_11.input_cmi);
   Types3_10.cmi_magic_number, ("3.10", Types3_10.input_cmi);
@@ -36,12 +37,13 @@ let input_cmi filename ic magic_number =
     try
       List.assoc magic_number versions
     with Not_found ->
-      raise(Env.Error(Env.Not_an_interface filename))
+      raise
+        (Error(Not_an_interface filename))
   in
-(*  Printf.fprintf stderr "Using cmi inputer for %s\n%!" version; *)
-  let cmi = inputer ic in
-(*  Printf.fprintf stderr "Cmi_compat.input_cmi module %s\n%!" cmi.Env.cmi_name; *)
-  cmi
+  try
+    inputer ic
+  with e ->
+    raise(Error(Corrupted_interface(Printf.sprintf "%s(%s)" filename version)))
 
 let read_cmi filename =
   let ic = open_in_bin filename in
@@ -53,11 +55,11 @@ let read_cmi filename =
     cmi
   with e ->
     close_in ic;
-    raise(Error(Corrupted_interface(filename)))
+    raise
+      (match e with Error _ -> e | _ -> Error(Corrupted_interface(filename)))
 
 let read_module modname filename =
   let cmi = read_cmi filename in
   if cmi.cmi_name <> modname then
     raise(Error(Illegal_renaming(cmi.cmi_name, filename)));
   cmi
-

@@ -195,7 +195,7 @@ let goto_definition program source_id pos =
             (String.concat " " !Config.load_path)
 *)
     in
-    debugln "found global ident: %s" (Ident.name gid);
+    debugln "found global ident: %s" (Ident.name_with_ctx gid);
     try
       FindName.id2loc program gid
     with Not_found ->
@@ -248,62 +248,38 @@ let comment_definition program source_id loc =
     in
     desc ^ comments
 
-let bprint_grep_result program kind id (idents, fnames, occs) errors =
-  let oc = Buffer.create 16
-  and rev_overlays = ref [] in
+let matches program file locs =
+  let absolute_file = Program.prefix_with ~prefix:`absolute program file in
+  debugln "found occurrences in %s" absolute_file;
+  let lines =
+    Array.of_list
+      (File.lines_of_file (ProgramCache.check_auto_save absolute_file)) in
+  List.map
+    (function loc ->
+      let line =
+        try lines.(loc.loc_start.pos_lnum-1)
+        with _ -> "ERROR: invalid line number" in
+      let n, line =
+        let line' = String.lstrip line in
+        String.length line - String.length line',
+        String.rstrip line'
+      in
+      let start = max 0 (-n + loc.loc_start.pos_cnum - loc.loc_start.pos_bol)
+      and endp =
+        min (String.length line) (-n + loc.loc_end.pos_cnum - loc.loc_start.pos_bol)
+      in
+      loc, start, endp, line)
+    locs
 
-  let name = Ident.name id in
-
-  let show face occs =
-    List.iter
-      (function file, locs ->
-	let absolute_file = Program.prefix_with ~prefix:`absolute program file in
-        debugln "found occurrences in %s" absolute_file;
-	let lines =
-	  Array.of_list
-	    (File.lines_of_file (ProgramCache.check_auto_save absolute_file)) in
-	List.iter
-	  (function loc ->
-	    let line =
-              try lines.(loc.loc_start.pos_lnum-1)
-              with _ -> "ERROR: invalid line number" in
-            let n, line =
-              let line' = String.lstrip line in
-              String.length line - String.length line',
-              String.rstrip line'
-            in
-	    Printf.bprintf oc "%s:%d:\n  " file loc.loc_start.pos_lnum;
-            let count = Buffer.length oc in
-            let start = count - n + loc.loc_start.pos_cnum - loc.loc_start.pos_bol
-            and endp =
-              min (count  + String.length line)
-                (count - n + loc.loc_end.pos_cnum - loc.loc_start.pos_bol)
-            in
-            rev_overlays := (face, `cnum start, `cnum endp) :: !rev_overlays;
-	    Printf.bprintf oc "%s\n" line)
-	  locs)
-      occs
+let all_matches program (idents, fnames, occs) =
+  let all_matches occs =
+    List.map
+      (function file, locs -> file, matches program file locs)
+      (sort_locations program occs)
   in
-  Printf.bprintf oc "OCP Grep %s %s:\n\n" (Env_untyped.kind2string kind) name;
-  Printf.bprintf oc "Definitions:\n\n";
-  List.iter
-    (function s ->
-      Printf.bprintf oc "%s:0:\n" s)
-    (file_renames ~for_grep:true program fnames);
-  debugln "defs:";
-  show Face.highlight_definition (sort_locations program idents);
-  Printf.bprintf oc "\nUses:\n\n";
-  debugln "occs:";
-  show Face.highlight_reference (sort_locations program occs);
-  Printf.bprintf oc "\nFound ";
-  if idents <> [] || fnames = [] then
-    Printf.bprintf oc "%d definition(s) and " (List.length idents);
-  Printf.bprintf oc "%d reference(s)" (List.length occs);
-  if fnames <> [] then
-    Printf.bprintf oc ", and %d toplevel module(s)\n" (List.length fnames)
-  else
-    Printf.bprintf oc "\n";
-  Buffer.contents oc, (*List.rev*) !rev_overlays
+  all_matches idents,
+  all_matches occs,
+  file_renames ~for_grep:true program fnames
 
 let ignore_project_file = ref false
 let default_cwd = ref true
@@ -352,9 +328,13 @@ let colorize buffer_name =
         GapBuffer.delete_mark chars start;
         GapBuffer.delete_mark chars end_;
         buffer.OcamlBuffer.needs_refontifying <- None;
-        Profile.time_call "colors"
-          (Colorize.colors buffer.OcamlBuffer.contents start_p) end_p
-      | None -> (0, 0), [], []
+        debugln "colorizing tokens [%d, %d[" start_p end_p;
+        let range, faces, helps =
+          Profile.time_call "colors"
+            (Colorize.colors buffer.OcamlBuffer.contents start_p) end_p
+        in
+        range, faces, helps, (start_p, end_p)
+      | None -> (0, 0), [], [], (0, 0)
 
 let completion buffername pos =
 (*  let open OcamlBuffer in *)
@@ -396,9 +376,11 @@ let eliminate_open ~errors program source_id loc =
   let fname = source_file.Program.source in
   let _env = ProgramCache.source_env program source_file in
   let r = ProgramCache.last_cnum2old_lc program source_file loc in
-  debugln "Locating open";
+  debugln "Locating open at (%d, %d)" (fst r) (snd r);
+  let r = r, r in
   let loc, typedtree_and_open =
-(*    let open Typedtree in *)
+    let typedtree =
+      (ProgramCache.typedtree program source_file :> TypedtreeOps.node) in
     try
       TypedtreeLocate.locate_map_item
         (function loc -> function
@@ -407,21 +389,21 @@ let eliminate_open ~errors program source_id loc =
           | `signature (s, ({sig_desc = Tsig_open (p, p_text)} as item)) ->
             Some (loc, `sig_open (s, item, p, p_text))
           | _ -> None)
-        (TypedtreeLocate.included r) TypedtreeLocate.loc_included_lc
-        (ProgramCache.typedtree program source_file :> TypedtreeOps.node)
+        (TypedtreeLocate.included_lc r) TypedtreeLocate.loc_included_lc
+        typedtree
     with Not_found -> try
       TypedtreeLocate.locate_map `innermost
         (function loc -> function
           | `expression {exp_desc = Texp_open (p, lid, e)} ->
-            if TypedtreeLocate.included r e.exp_loc then
+            if TypedtreeLocate.included_lc r e.exp_loc then
               None
             else
               Some (
                 {loc with loc_end = e.exp_loc.loc_start}
                   , `exp_open (p, lid, e))
           | _ -> None)
-        (TypedtreeLocate.included r) TypedtreeLocate.loc_included_lc
-        (ProgramCache.typedtree program source_file :> TypedtreeOps.node)
+        (TypedtreeLocate.included_lc r) TypedtreeLocate.loc_included_lc
+        typedtree
     with Not_found -> fail_owz "no open statement to eliminate here" in
   debugln "Computing replaces";
   let replaces =
@@ -433,9 +415,10 @@ let eliminate_open ~errors program source_id loc =
     | [file, replaces] -> replace_in_file ~errors program (file, replaces)
     | _ -> assert false
 
-module Make(IDE : IDE_Callback.Callback) = struct
+module Make(IDE : IDE_Callback.Callback)(Specifics : IDE_Specifics.T) = struct
 
   open IDE
+  open Specifics
 
   let append2file f s =
     let flags = [ Open_append ]
@@ -556,7 +539,9 @@ let with_current_source ?check f =
     | Some _ -> ignoring_auto_save (function () -> f program source)
     | None -> f program source
 
+(*
 let current_pos () = `cnum (point ())
+*)
 let current_pos () = `lc (line_column_bytes ())
 
 let with_current_loc ?check f =
@@ -749,6 +734,8 @@ let undo_last () =
     message "No multiple-file action to undo")
 
 let pos2lc pos = `lc (pos.pos_lnum, pos.pos_cnum - pos.pos_bol)
+
+
 (*
 let loc2region_lc loc =
   `lc (
@@ -775,7 +762,7 @@ let grep toplevel =
     Profile.time_switch_to "grep in files";
     let check_errors = !errors in
     errors := [];
-    let defs, _, occs as result = grep ~errors kind id program in
+    let result = grep ~errors kind id program in
     errors := check_errors @
     List.filter
       (function Qualified (_, e) | e ->
@@ -784,36 +771,10 @@ let grep toplevel =
     debugln "found %d errors after grep" (List.length !errors);
     Profile.time_switch_to "print results and wait";
     let source = Program.source program (Program.find_source program source) in
-    let local_defs =
-      try List.assoc source (sort_locations program defs)
-      with Not_found -> []
-    and local_occs =
-      try List.assoc source (sort_locations program occs)
-      with Not_found -> []
-    in
-    let contents, overlays = bprint_grep_result program kind id result errors in
-    let overlay face =
-      List.map
-        (function loc -> face, pos2lc loc.loc_start, pos2lc loc.loc_end)
-    in
-    let local_overlays =
-      overlay Face.highlight_definition local_defs @
-      overlay Face.highlight_reference local_occs
-    in
-    let errors =
-      match !errors with
-        | [] -> None
-        | _ ->
-          Some
-            (Printf.sprintf
-               ("Warning! Some exception(s) occured while scanning the program "
-                ^^ "for propagation:\n%s\n"
-                ^^ "Result list might be partial!")
-               (list_errors !errors))
-    in
-    present_grep_results
-      ~root:program.Program.root ~contents overlays ~local_overlays ~errors;
-    Profile.time_pop ()
+    let result = all_matches program result in
+    Profile.time_pop ();
+    return_grep_results
+      ~root:program.Program.root kind id result ~current:source ~errors:!errors
   )
 
 let jump_to program loc =
@@ -880,12 +841,26 @@ let comment_definition () =
   )
 
 let colorize buffer_name =
-  let (b, e), faces, helps = colorize buffer_name in
+  let (b, e), faces, helps, forced = colorize buffer_name in
   Profile.time_call "compute faces for IDE"
-    (return_fontifying_data b e faces) helps
+    (return_fontifying_data b e faces helps) forced
 
 let completion buffername pos =
   let prefix, candidates = completion buffername pos in
   return_completion_data pos prefix candidates
 
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+

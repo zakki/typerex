@@ -1,6 +1,6 @@
 ;;; auto-complete.el --- Auto Completion for GNU Emacs
 
-;; Copyright (C) 2008, 2009, 2010  Tomohiro Matsuyama
+;; Copyright (C) 2008, 2009, 2010, 2011, 2012  Tomohiro Matsuyama
 
 ;; Author: Tomohiro Matsuyama <m2ym.pub@gmail.com>
 ;; URL: http://cx4a.org/software/auto-complete
@@ -597,7 +597,7 @@ If there is no common part, this will be nil.")
         (ignore-errors
           (with-temp-buffer
             (insert-file-contents filename)
-            (setq result (split-string (buffer-string) "\n"))))
+            (setq result (split-string (buffer-string) "\n" t))))
         (puthash filename result ac-file-dictionary)
         result))))
 
@@ -1255,7 +1255,11 @@ that have been made before in this function."
 
 (defun ac-quick-help (&optional force)
   (interactive)
-  (when (and (or force (null this-command))
+  ;; TODO don't use FORCE
+  (when (and (or force
+                 (called-interactively-p)
+                 ;; ac-isearch'ing
+                 (null this-command))
              (ac-menu-live-p)
              (null ac-quick-help))
       (setq ac-quick-help
@@ -1785,7 +1789,8 @@ completion menu. This workaround stops that annoying behavior."
          ((fboundp symbol)
           ;; import help-xref-following
           (require 'help-mode)
-          (let ((help-xref-following t))
+          (let ((help-xref-following t)
+                (major-mode 'help-mode)) ; avoid error in Emacs 24
             (describe-function-1 symbol))
           (buffer-string))
          ((boundp symbol)
@@ -1909,18 +1914,19 @@ completion menu. This workaround stops that annoying behavior."
 (defvar ac-filename-cache nil)
 
 (defun ac-filename-candidate ()
-  (unless (file-regular-p ac-prefix)
-    (ignore-errors
-      (loop with dir = (file-name-directory ac-prefix)
-            with files = (or (assoc-default dir ac-filename-cache)
-                             (let ((files (directory-files dir nil "^[^.]")))
-                               (push (cons dir files) ac-filename-cache)
-                               files))
-            for file in files
-            for path = (concat dir file)
-            collect (if (file-directory-p path)
-                        (concat path "/")
-                      path)))))
+  (let (file-name-handler-alist)
+    (unless (file-regular-p ac-prefix)
+      (ignore-errors
+        (loop with dir = (file-name-directory ac-prefix)
+              with files = (or (assoc-default dir ac-filename-cache)
+                               (let ((files (directory-files dir nil "^[^.]")))
+                                 (push (cons dir files) ac-filename-cache)
+                                 files))
+              for file in files
+              for path = (concat dir file)
+              collect (if (file-directory-p path)
+                          (concat path "/")
+                        path))))))
 
 (ac-define-source filename
   '((init . (setq ac-filename-cache nil))

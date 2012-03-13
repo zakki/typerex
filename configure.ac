@@ -1,10 +1,11 @@
 # Set VERSION so we ongit ly need to edit it one place (ie. here)
-AC_INIT(TypeRex, 1.0.0rc2, contact@ocamlpro.com)
+AC_INIT(TypeRex, 1.0.0, contact@ocamlpro.com)
 
 AC_COPYRIGHT(Copyright 2011 OcamlPro SAS)
 
 # Checking for OCaml executables, version and stdlib path
 AC_PROG_OCAML
+AC_PROG_CAMLP4
 
 # Make sure that OCaml is installed
 if test "$OCAMLC" = "no"; then
@@ -70,7 +71,7 @@ AC_PROG_OCAMLYACC
 AM_PATH_LISPDIR
 # Make sure that Emacs is installed
 if test "$EMACS" = "no"; then
-  AC_MSG_ERROR([You must install the Emacs to run TypeRex])
+  AC_MSG_ERROR([You must install Emacs to run TypeRex])
 fi
 
 # Stolen from:
@@ -118,6 +119,7 @@ AC_CONFIG_FILES(
   emacs.append
   libs/ocamlpro/typerex-config/typerex_config.ml
   tools/ocp-typerex-ide/emacs/typerex-config.el
+  libs/ocamlpro/system/ocplib-system.ocp
 )
 #  ocaml.conf
 

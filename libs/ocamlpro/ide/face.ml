@@ -41,6 +41,9 @@ type tface = [
 | `interactive_error
 ]
 
+(** Caml-mode customizable faces *)
+type cface = [ `doccomment | `stop ]
+
 (** Emacs Font Lock predefined faces *)
 type fface = [
   `comment
@@ -63,6 +66,7 @@ type fface = [
 type face = [
   `desc of face_attr list
 | `typerex of tface (** tuareg-mode faces *)
+| `caml of cface (** caml-mode faces *)
 | `font_lock of fface (** font-lock predefined *)
 | `ocp of string (* named OCP faces *)
 | `none (** used to clear the face *)
@@ -128,6 +132,10 @@ let tface2string = function
   | `interactive_output -> "interactive-output"
   | `interactive_error -> "interactive-error"
 
+let cface2string = function
+  | `doccomment -> "doccomment"
+  | `stop -> "stop"
+
 let fface2string = function
   | `comment -> "comment"
   | `comment_delimiter -> "comment-delimiter"
@@ -160,9 +168,11 @@ let face_emacs_name = function
   | `none -> "nil"
   | `typerex tface ->
     Printf.sprintf "'typerex-font-lock-%s-face" (tface2string tface)
+  | `caml cface ->
+    Printf.sprintf "caml-font-%s-face" (cface2string cface)
   | `font_lock fface ->
     Printf.sprintf "font-lock-%s-face" (fface2string fface)
-  | `ocp name -> Printf.sprintf (*"ocp-%s-face"*) "'%s" name
+  | `ocp name -> Printf.sprintf "'ocp-face-%s" name
   | `desc attributes ->
     Printf.sprintf "`(%s)"
       (String.concat " "
@@ -182,6 +192,7 @@ let face_emacs_name = function
 let face_eclipse_name = function
   | `none -> "none"
   | `typerex tface -> (tface2string tface)
+  | `caml cface -> (cface2string cface)
   | `font_lock fface -> (fface2string fface)
   | `ocp name -> Printf.sprintf "ocp-%s" name
   | `desc attributes ->
@@ -199,3 +210,6 @@ let face_eclipse_name = function
                 Printf.sprintf "underline:%s" (color_eclipse_name color)
               | `underline None -> Printf.sprintf "underline:none")
             attributes))
+
+
+

@@ -33,3 +33,21 @@ exception ErrorInCallback of string
 
 (** Emacs editor interface *)
 module Make : IDE_Callback.SocketCallback
+
+(** The following functions are exported to be used in the
+    implementation of application-specific interfacing, namely,
+    the IDE_Specifics.Emacs module of TypeRex. *)
+
+val property_list : IDE_Callback.property list -> string
+
+val propertize_region_lists_command :
+  ?unit:[ `byte | `char ] ->
+  (IDE_Callback.property list * (int * int) list) list ->
+  string
+
+val pos : ?unit:[ `byte | `char ] -> int -> string
+
+val regions :
+  ?unit:[ `byte | `char ] ->
+  (Face.face * IDE_Callback.pos * IDE_Callback.pos) list ->
+  string

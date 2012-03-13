@@ -472,12 +472,17 @@ end = struct
   let reset () = Hashtbl.clear tbl
 *)
 
+  let last_builtin_timestamp = List.length Predef.builtin_idents
+
   let t id =
-    let predef = 0 < id.T.stamp && id.T.stamp < 1000 in
+    let predef = 0 < id.T.stamp && id.T.stamp <= last_builtin_timestamp in
     if predef then
       (* This works provided older versions only have a subset of the
          builtin idents of the current versions. *)
-      List.assoc id.T.name Predef.builtin_idents
+      try
+        List.assoc id.T.name Predef.builtin_idents
+      with Not_found ->
+        Printf.ksprintf failwith "predefined ident %s not found" id.T.name
     else {
       stamp = id.T.stamp;
       name = id.T.name;

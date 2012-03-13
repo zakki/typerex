@@ -34,7 +34,7 @@
  </div>
 
 <div class="contents">
-<H1 CLASS="chapter"><A NAME="htoc41"></A>Common issues and questions</H1><H2 CLASS="section"><A NAME="toc15"></A><A NAME="htoc42">4.1</A>&#XA0;&#XA0;General</H2><P>&#XA0;<BR>
+<H1 CLASS="chapter"><A NAME="htoc42"></A>Common issues and questions</H1><H2 CLASS="section"><A NAME="toc15"></A><A NAME="htoc43">4.1</A>&#XA0;&#XA0;General</H2><P>&#XA0;<BR>
 
 </P><H4 CLASS="subsubsection">Reporting bugs</H4><P>
 Bugs reports should be sent through the issue tracker at
@@ -58,18 +58,33 @@ functions (and offering an alternative for syntax coloring). It
 should not be enabled as the same time as the original
 <CODE>tuareg-mode</CODE> in your<CODE>.emacs</CODE>, or conflicts will
 arise. Optional interaction with the <CODE>caml-mode</CODE> should behave
-exactly the same, but has not been tested.
-</LI></UL><H4 CLASS="subsubsection">What about other editors and operating systems</H4><P>Eclipse support is planed in a near future. Some people have also
+exactly the same, but has not been tested, except for syntax coloring.
+</LI></UL><H4 CLASS="subsubsection">What about prior Caml-mode/Tuareg-mode customization</H4><P>
+As explained above, since TypeRex embeds the Tuareg mode, with
+functions typically renamed from <CODE>tuareg-</CODE>&#X2026; to
+<CODE>typerex-</CODE>&#X2026;, you should make sure to disable Tuareg when
+using TypeRex, to avoid risking conflicts. Furthermore, if you
+previously customized these modes (<EM>e.g.</EM>, indentation or
+coloring settings), you can probably just replace the appropriate
+names in your existing configuration. See the manual about getting
+Tuareg-mode colors. To use the Caml-mode for coloration instead, you
+can just add the following to your <CODE>.emacs</CODE> (replacing the caml-mode path):
+
+</FONT></P><PRE CLASS="verbatim">(setq ocp-syntax-coloring nil)
+(setq load-path (cons "/path/to/the/caml-mode" load-path))
+(if window-system (require 'caml-font))
+(add-hook 'typerex-mode-hook 'caml-font-set-font-lock)
+</FONT></PRE><H4 CLASS="subsubsection">What about other editors and operating systems</FONT></H4><P>Eclipse support is planed in a near future. Some people have also
 expressed interest in VIM support, so we pay attention to this too.
 Windows support is also planed (there may not be a lot of work to do
-for that).</P><H4 CLASS="subsubsection">How does it compare to other similar tools</H4><P>
+for that).</FONT></P><H4 CLASS="subsubsection">How does it compare to other similar tools</FONT></H4><P>
 Many other tools exist to improve the development in OCaml, and it is
 not possible to describe each of them here. Generally, we believe the
 refactoring and semantic grep capabilities of TypeRex to be the most
 advanced, (except for the particular case of Oug, whose very
 expressive graph description allows similar queries). Identifier querying
 is slightly more powerful and robust than its equivalents in,
-<EM>e.g.</EM>, Tuareg, OCamlSpotter, or OcaIDE, with some minor
+</FONT><EM>e.g.</EM></FONT>, Tuareg, OCamlSpotter, or OcaIDE, with some minor
 differences in user interface choices. TypeRex does not yet have
 graphical summaries as in ODT or OCaIDE, or build management. Syntax
 coloring is more detailed and systematic than other solutions. Auto
@@ -77,20 +92,7 @@ completion is currently restricted to identifiers (and very approximate for
 local identifiers), and does not support syntactic constructs such as
 pattern matching (as was proposed in OcamlWizard and the latest
 version of OCamlSpotter), but it is already quite accurate and
-responsive on identifiers defined in other modules.</P><H4 CLASS="subsubsection">What about prior Caml-mode/Tuareg-mode customization</H4><P>
-TypeRex embeds the Tuareg mode, with functions typically renamed from
-<CODE>tuareg-*</CODE> to <CODE>typerex-*</CODE>. This means that you should make
-sure to disable Tuareg when using TypeRex, to avoid risking
-conflicts. Furthermore, if you previously customized these modes
-(<EM>e.g.</EM>, indentation or coloring settings), you can probably just
-replace the appropriate names in your existing configuration. To get
-caml-mode coloration, you can just add the following to your <CODE>.emacs</CODE>:
-
-</FONT></P><PRE CLASS="verbatim">(setq ocp-syntax-coloring nil)
-(setq load-path (cons "~/.emacs.d/caml-mode" load-path))
-(if window-system (require 'caml-font))
-(add-hook 'typerex-mode-hook 'caml-font-set-font-lock)
-</FONT></PRE><H2 CLASS="section"><A NAME="toc16"></A><A NAME="htoc43">4.2</FONT></A>&#XA0;&#XA0;Project setup / building annotations</FONT></H2><H4 CLASS="subsubsection">Findlib configuration does not work</FONT></H4><P>
+responsive on identifiers defined in other modules.</FONT></P><H2 CLASS="section"><A NAME="toc16"></A><A NAME="htoc44">4.2</FONT></A>&#XA0;&#XA0;Project setup / building annotations</FONT></H2><H4 CLASS="subsubsection">Findlib configuration does not work</FONT></H4><P>
 We are investigating possible issues with findlib itself.</FONT></P><H4 CLASS="subsubsection">How to use TypeRex with Ocamlbuild projects</FONT></H4><P>
 First, see the setup instructions on how to generate the
 </FONT><CODE>.cmt(i)</FONT></CODE> files (this usually amounts to calling
@@ -123,7 +125,7 @@ detected, so don&#X2019;t expect a fully automatic renaming of </FONT><EM>e.g.</
 </FONT><CODE>List.iter</FONT></CODE>.
 </FONT></LI><LI CLASS="li-itemize">The </FONT><CODE>Dynlinkaux</FONT></CODE> pack module is not correctly understood by
 TypeRex (because its components are in another directory).
-</FONT></LI></UL><H2 CLASS="section"><A NAME="toc17"></A><A NAME="htoc44">4.3</FONT></A>&#XA0;&#XA0;Browsing and refactoring</FONT></H2><H4 CLASS="subsubsection">{module, value, &#X2026;} x not found [in load-path]</FONT></H4><P>
+</FONT></LI></UL><H2 CLASS="section"><A NAME="toc17"></A><A NAME="htoc45">4.3</FONT></A>&#XA0;&#XA0;Browsing and refactoring</FONT></H2><H4 CLASS="subsubsection">{module, value, &#X2026;} x not found [in load-path]</FONT></H4><P>
 This means that some identifiers could not be resolved, and can occur
 in many situations. For a toplevel module, this probably means a
 configuration problem (check your </FONT><CODE>.typerex</FONT></CODE>).</FONT></P><H4 CLASS="subsubsection">Grep, Cycle, and renaming sometimes lag</FONT></H4><P>
@@ -142,12 +144,22 @@ buffers, so that it can usually re-align shifted positions
 correctly. This is not a perfect solution though, and in particular,
 possible auto-save files (</FONT><CODE>#file.ml#</FONT></CODE>) from older sessions will
 confuse TypeRex, if they are more recent than the file itself. In
-this case you should delete them.</FONT></P><H2 CLASS="section"><A NAME="toc18"></A><A NAME="htoc45">4.4</FONT></A>&#XA0;&#XA0;Syntax coloring</FONT></H2><H4 CLASS="subsubsection">Coloring is sometimes inaccurate</FONT></H4><P>
+this case you should delete them.</FONT></P><H4 CLASS="subsubsection">How does TypeRex deal with multiple toplevel modules with the same name</FONT></H4><P>
+TypeRex was designed with this issue in mind, and uses full-path
+identification of toplevel-modules, together with a careful multiple
+load-paths management and digest-based cmt assignment. However, the
+currently limited project configuration file </FONT><CODE>typerex</FONT></CODE> lacks
+expressiveness to accurately describe such settings (the load path is
+the same for all source files) so this is not yet fully supported (and
+more testing is required). For example, TypeRex should typically be
+able to deal correctly with multiple </FONT><CODE>Main</FONT></CODE> modules (if no other
+module depends on them), but not with multiple </FONT><CODE>Misc</FONT></CODE> or
+</FONT><CODE>Util</FONT></CODE> modules.</FONT></P><H2 CLASS="section"><A NAME="toc18"></A><A NAME="htoc46">4.4</FONT></A>&#XA0;&#XA0;Syntax coloring</FONT></H2><H4 CLASS="subsubsection">Coloring is sometimes inaccurate</FONT></H4><P>
 The current implementation has exact lexing information, but only uses
 heuristics for approximate syntax computation (because it needs to
 work for syntaxically incorrect buffers). This solution is not perfect
 and also suffers from some thresholds which are introduced to keep it
-responsive enough.</FONT></P><H2 CLASS="section"><A NAME="toc19"></A><A NAME="htoc46">4.5</FONT></A>&#XA0;&#XA0;Auto completion</FONT></H2><H4 CLASS="subsubsection">Completion is inaccurate for definitions in the current buffer</FONT></H4><P>
+responsive enough.</FONT></P><H2 CLASS="section"><A NAME="toc19"></A><A NAME="htoc47">4.5</FONT></A>&#XA0;&#XA0;Auto completion</FONT></H2><H4 CLASS="subsubsection">Completion is inaccurate for definitions in the current buffer</FONT></H4><P>
 The current implementation of completion is semantic for external
 compilation units (i.e., with a .cmt(i) or .cmi, but only lexical for
 the current buffer, so this is expected.</FONT></P><H4 CLASS="subsubsection">Completion stops working</FONT></H4><P>

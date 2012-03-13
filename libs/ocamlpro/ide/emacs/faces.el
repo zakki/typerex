@@ -18,38 +18,41 @@
 ;; This file defines a set of faces for use with new TypeRex syntax
 ;; coloring, both on dark or light background.
 
-(defgroup ocp-faces nil
-  "New OCP faces for the TypeRex mode."
-  :group 'ocp)
+(defgroup typerex-new-faces nil
+  "Special faces for the new TypeRex syntax coloring."
+  :group 'typerex-syntax-coloring)
 
-(defun face (name desc)
+(defun ocp-face-name (name)
+  (intern (concat "ocp-face-" (symbol-name name))))
+
+(defun ocp-face-same (name desc)
   (progn
-  (eval `(defface ,name `(
+  (eval `(defface ,(ocp-face-name name) `(
    (t
     ,desc
     )) ,(format "Face for %s tokens" name)
-       :group 'ocp-faces))
+       :group 'typerex-new-faces))
 ;  (eval `(defvar ,name `,name))
   ))
 
-(defun face-light-dark (name light dark)
-  (eval `(defface ,name `(
+(defun ocp-face-light-dark (name light dark)
+  (eval `(defface ,(ocp-face-name name) `(
    (((background light))
     ,light
    )(t
     ,dark
     )) ,(format "Face for %s tokens" name)
-       :group 'ocp-faces)))
+       :group 'typerex-new-faces)))
 
-(defun face1 (f)
+(defun ocp-face (f)
   (if (eq (length f) 3)
-      (face-light-dark (car f) (cadr f) (cadr (cdr f)))
-    (face (car f) (cadr f))))
+      (ocp-face-light-dark (car f) (cadr f) (cadr (cdr f)))
+    (ocp-face-same (car f) (cadr f))))
 
 
 ;; The following defines a list of faces by means of entries of the
 ;; following format: (<name> <light background> [<dark background>])
-(mapc 'face1 '(
+(defconst ocp-faces `(
 
 ;; Keywords
   (governing
@@ -71,6 +74,9 @@
    (:weight ultra-bold :foreground "MediumOrchid3" :background "purple4"))
   (func
    (:weight ultra-bold :foreground "purple3"))
+  (op-field
+   (:weight ultra-bold)
+   (:foreground "gray85" :weight ultra-bold))
 
 ;; Operators
   (op
@@ -92,20 +98,20 @@
   (type-occ
    (:foreground "OliveDrab4"))
   (type-def
-   (:weight bold :inherit type-occ))
+   (:weight bold :inherit ,(ocp-face-name 'type-occ)))
   (type-variable
    (:weight bold :foreground "dark violet"))
   (cstr-occ
    (:inherit font-lock-constant-face)
    (:foreground "medium sea green"))
   (cstr-def
-   (:weight bold :inherit cstr-occ)
+   (:weight bold :inherit ,(ocp-face-name 'cstr-occ))
    (:weight bold :foreground "medium sea green"))
   (field-occ
    (:inherit font-lock-constant-face)
    (:foreground "medium sea green"))
   (field-def
-   (:weight bold :inherit field-occ)
+   (:weight bold :inherit ,(ocp-face-name 'field-occ))
    (:weight bold :foreground "medium sea green"))
   (variant
    (:inherit font-lock-constant-face))
@@ -116,18 +122,18 @@
    (:inherit font-lock-variable-name-face)
    (:foreground "peru"))
   (val-def-fun
-   (:weight bold :inherit val-occ-fun)
+   (:weight bold :inherit ,(ocp-face-name 'val-occ-fun))
    (:weight bold :foreground "light sky blue"))
   (val-def
-   (:weight bold :inherit val-occ))
+   (:weight bold :inherit ,(ocp-face-name 'val-occ)))
   (method-occ
-   (:inherit val-occ))
+   (:inherit ,(ocp-face-name 'val-occ)))
   (method-def
-   (:weight bold :inherit method-occ))
+   (:weight bold :inherit ,(ocp-face-name 'method-occ)))
   (mod-occ
    (:foreground "dark orange"))
   (mod-def
-   (:weight bold :inherit mod-occ))
+   (:weight bold :inherit ,(ocp-face-name 'mod-occ)))
   (builtin
    (:inherit font-lock-builtin-face))
 
@@ -139,9 +145,9 @@
   (doc-title
    (:weight bold :foreground "black" :background "light blue"))
   (doc-italic
-   (:slant italic :inherit doc))
+   (:slant italic :inherit ,(ocp-face-name 'doc)))
   (doc-bold
-   (:weight bold :inherit doc))
+   (:weight bold :inherit ,(ocp-face-name 'doc)))
   (doc-keyword
    (:foreground "magenta4"))
   (doc-stop
@@ -159,3 +165,5 @@
    (:background "purple4"))
 
 ))
+
+(mapc 'ocp-face ocp-faces)

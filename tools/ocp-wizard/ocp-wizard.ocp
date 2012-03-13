@@ -51,6 +51,7 @@ begin library "ocp-wizard-lib"
     "syntax/colorize.ml";
 
     "main/exceptions.ml";
+    "main/IDE_Specifics.ml";
     "main/owzUI.ml";
     "main/owzServer.ml";
 
@@ -105,6 +106,7 @@ begin program "ocp-wizard"
 
     (* Color themes. Last one will be the default ! *)
     "coloring_themes/tuareg_like.ml"
+    "coloring_themes/caml_like.ml"
     "coloring_themes/syntactic.ml"
 
     "main/owzMain.ml"

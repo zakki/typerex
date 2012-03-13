@@ -238,11 +238,23 @@ let modname2unit modname =
   debugln "found unit %s" prefix;
   prefix, unit
 
+(* In theory ,this should be enough, but this is not the case. *)
 let source_digest_matches program unit digest =
   let _, file = Program.mli_or_ml unit in
   let t = typedtree ~prefix:`absolute program file in
   Sys.file_exists t &&
     (fst (read_cmt t)).Cmt_format.cmt_source_digest = digest
+
+(* We have to check both mli and ml (because we may be in the ml itself maybe) *)
+let source_digest_matches program unit digest =
+  let matches = function
+    | Some file ->
+        let t = prefix_with ~prefix:`absolute program file.typedtree in
+        Sys.file_exists t &&
+          (fst (read_cmt t)).Cmt_format.cmt_source_digest = digest
+    | None -> false
+  in
+  matches unit.interface || matches unit.implementation
 
 (* new version, avoiding load path if possible
    should be merged with [find] ! *)
@@ -257,10 +269,11 @@ let ctx2prefix ctx =
           match unit with
             | Concrete unit ->
               debugln "concrete %s" prefix;
-              source_digest_matches program unit ctx.Ident.source_digest ||
-                (debugln "source digest for %s does not match" prefix; false)
+              source_digest_matches program unit ctx.Ident.source_digest
             | _ -> false
         in
+        debugln "source digest for %s %s" prefix
+          (if digest_ok then "matches" else "does not match");
         ((prefix, unit), digest_ok))
       units
   in
@@ -282,7 +295,7 @@ let unit2cmi prefix = function
         | Pack {p_interface = Some source} ->
           NoCmt source,
           typedtree ~prefix:`absolute (program ()) source
-        | Pack ({p_interface = None ; p_typedtree = p_typedtree} as unit)->
+        | Pack ({p_interface = None ; p_typedtree = p_typedtree} as unit) ->
           NoCmtPack unit,
           Program.prefix_with ~prefix:`absolute (program ()) p_typedtree
         | Concrete _ -> assert false
@@ -318,7 +331,7 @@ let starting_time = 500000000
 
 let () =
   Cmt_env.init ();
-  (* We use lazyness for efficiency (e.g. Core) but the we have to
+  (* We use lazyness for efficiency (e.g. Core) but then we have to
      prevent any renaming, because lazy renamings appear inside the
      [disabling_renaming] wrapper in [components_of_module], which
      would not be disabled. *)

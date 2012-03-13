@@ -33,7 +33,10 @@ let get_c_num loc =
   loc.Location.loc_start.Lexing.pos_cnum,
   loc.Location.loc_end.Lexing.pos_cnum
 
-let lid2string lid = String.concat "." (Longident.flatten lid)
+let rec lid2string = function
+    Lident s -> s
+  | Ldot(lid, s) -> lid2string lid ^ "." ^ s
+  | Lapply(l1, l2) -> lid2string l1 ^  "(" ^ lid2string l2 ^ ")"
 
 let source_locations file locs =
   match locs with

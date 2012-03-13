@@ -17,29 +17,10 @@
 
 (** OCaml (ident) completion. *)
 
-(** Identifiers which are not treated with Ident.t and Env.t *)
-type non_ident =
-  | Method
-  | Variant (* polymorphic variant *)
-  | TypeVariable
-  | Label (* argument label *)
+(** Completion-specific data associated with the buffer *)
+type local_envs
 
-type env = {
-  idents :
-    ([ `ident of Env_untyped.path_sort | `nonIdent of non_ident ] *
-     int StringMap.t
-    ) list;
-  opens : string list
-}
-
-type local_envs = {
-  mutable local_env : env array;
-  mutable local_env_bound : int
-    (** local envs are valid up to (before) this token.
-        invariant: 0 <= local_env_bound < |local_env| *)
-}
-
-val initial_env : unit -> local_envs
+val initial_env : (Program.program * Program.source_file_id) Lazy.t -> local_envs
 val invalidate_env_after : local_envs -> int -> unit
 
 (** [completion buffername pos] returns, if any, the relevant prefix
@@ -52,4 +33,24 @@ val completions :
   Program.program -> Program.source_file_id ->
   OcamlTokenize.OCamlTokenBuffer.tokenized_buffer -> local_envs ->
   int ->
-  string * (Env_untyped.path_sort * string * string lazy_t) list
+  string * (Env_untyped.path_sort * string * string Lazy.t) list
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -27,10 +27,14 @@ type extended_token =
 type token = private {
   token : extended_token;
   string : string;
-  length : int (* temporary *)
+  length : int; (* temporary *)
+  mutable faces : (int * int * Face.face) list
+    (** saving faces to detect face changes *)
 }
 
 val length : token -> int
+
+val set_faces : token -> (int * int * Face.face) list -> unit
 
 module OCamlToken : TokenBuffer.TOKEN
   with type token = token

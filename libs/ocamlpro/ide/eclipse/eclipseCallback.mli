@@ -22,9 +22,10 @@
     defined in callback.el, with the same port number. *)
 
 (** Raised if an error occurs during the reading of the command sent
-    to Emacs (i.e., a parse error). The string argument is the form
-    whose reading failed. *)
-exception CallbackReadError of string
+    to Emacs (i.e., a parse error). The string arguments are
+    - the description of the error
+    - the command whose reading failed. *)
+exception CallbackReadError of string * string
 
 (** Raised if an error occurs during the evaluation of the lisp form
     by Emacs. The string argument is the printing of the lisp error

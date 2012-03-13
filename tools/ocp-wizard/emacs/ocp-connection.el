@@ -92,16 +92,16 @@
 
 (defcustom ocp-server-command "ocp-wizard"
   "command to run the TypeRex server ; may be any shell command"
-  :group 'ocp :type '(string))
+  :group 'typerex-misc :type '(string))
 
 (defcustom ocp-debug nil "whether TypeRex should run in debug mode"
-  :group 'ocp :type '(string))
+  :group 'typerex-misc :type '(string))
 
 (defcustom ocp-dont-catch-errors nil "fail-fast mode"
-  :group 'ocp :type '(boolean))
+  :group 'typerex-misc :type '(boolean))
 
 (defcustom ocp-profile nil "a command name to be profiled"
-  :group 'ocp :type '(string))
+  :group 'typerex-misc :type '(string))
 
 (defvar ocp-wizard-server-process nil "the ocp-wizard server process")
 
@@ -135,7 +135,7 @@
                 (concat " -debug " ocp-debug)))
             (if ocp-dont-catch-errors " -dont-catch-errors" "")
             (if ocp-profile (concat " -profile " ocp-profile) "")
-            (if (or (eq ocp-theme nil) (string= ocp-theme "tuareg"))
+            (if (or (eq ocp-theme nil) (member ocp-theme '("tuareg" "caml")))
                 ""
               (concat " -coloring-theme " ocp-theme))
             " -backtrace"

@@ -43,7 +43,7 @@ let find_or_create ?(init= function () -> raise Not_found) buffername =
     let state = {
       filename = filename;
       program = program;
-      local_envs = Completion.initial_env ();
+      local_envs = Completion.initial_env program;
       contents = empty ();
       needs_refontifying = None;
       last_completion = []

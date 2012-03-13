@@ -20,6 +20,9 @@ open Util
 open GapBuffer
 open OcamlBuffer
 open Parser
+open OcamlTokenize
+open OCamlTokenBuffer
+
 include Debug.Tag(struct let tag = "colorize" end)
 
 let drop_until keep =
@@ -330,68 +333,41 @@ let classify_lid ~before ~after =
           in
           (if equal then `occ else `def), `value arity
         | `modules _ -> `occ, `value `value (* should not happen *)
-(*
-      let intro, equal =
-        drop_until_checking
-          ([ END ; SEMISEMI ; STRUCT ; SIG ; IN ; WITH ; CONSTRAINT] @
-              introducing)
-          ~check:[ EQUAL ] before
-      in
-      (match intro, before with
-         | TYPE :: _, (TYPE | AND | RPAREN) :: _ ->
-           (if equal then `occ else `def), `tconstr
-         | _ -> `occ, `value `value)
-
-    | (LET | REC | AND | VAL | MUTABLE | VIRTUAL | PRIVATE | EXTERNAL |
-       CLASS) :: _, after when
-        match after with
-          | EQUAL :: (FUN | FUNCTION) :: _ -> true
-          | (EQUAL | COLON | COMMA) :: _ | [] -> false
-          | _ :: _ -> true ->
-            `def, `value `func
-    | _ when
-        match
-          drop_until
-            [LET ; REC ; AND ; TYPE ; VAL ; FUN ; FUNCTION ; MODULE ; WITH;
-             CONSTRAINT ; EQUAL ; MINUSGREATER]
-            before with
-              | (LET | REC | AND | VAL | FUN | FUNCTION) :: _ -> true
-              | _ -> false ->
-                `def, `value `value
-            
-    | _ -> `occ, `value `value
-*)
 
 let any_token2faces = ref []
 
 let lookahead = 300
 let lookbehind = 300
 
-open OcamlTokenize
-
 let colors buffer start end_ =
 
   (* First, widen the area: *)
-  OCamlTokenBuffer.goto buffer start;
-  let t_start = buffer.OCamlTokenBuffer.t_pre in
+  goto buffer start;
+  let t_start0 = buffer.t_pre in
   let start = ref start in
-  while buffer.OCamlTokenBuffer.t_pre > max 0 (t_start - lookahead)
-    || buffer.OCamlTokenBuffer.offset > 0 do
-    OCamlTokenBuffer.backward buffer;
+  while buffer.t_pre > max 0 (t_start0 - lookahead)
+    || buffer.offset > 0 do
+    backward buffer;
     decr start
   done;
-  let t_start = buffer.OCamlTokenBuffer.t_pre
+  let t_start = buffer.t_pre
   and start = !start in
-  OCamlTokenBuffer.goto buffer end_;
-  let t_end = buffer.OCamlTokenBuffer.t_pre in
-  while buffer.OCamlTokenBuffer.t_pre
-    < min (OCamlTokenBuffer.t_length buffer) (t_end + lookbehind) do
-    OCamlTokenBuffer.forward buffer
+  goto buffer end_;
+  let t_end0 = buffer.t_pre in
+  while buffer.t_pre
+    < min (t_length buffer) (t_end0 + lookbehind) do
+    forward buffer
   done;
-  let t_end = buffer.OCamlTokenBuffer.t_pre in
+  let t_end = buffer.t_pre in
+
+  (* Also record that the faces for the modified area must be re-sent anyway *)
+  for i = t_start0 to min t_end0 (t_length buffer - 1) do
+    let t = buffer.t_buf.(pos2pointer buffer i) in
+    set_faces t []
+  done;
 
   (* Second, compute the initial forward and backward stacks *)
-  let modified =  OCamlTokenBuffer.sub buffer t_start t_end in
+  let modified = sub buffer t_start t_end in
   let modified_tokens =
     Array.fold_left
       (function n -> function
@@ -413,10 +389,12 @@ let colors buffer start end_ =
       Hashtbl.add t key r;
       r
   in
-  List.iter
-    (function t ->
+  List.iteri
+    (fun i t ->
+      let t_pos = t_start + i
+      and len = length t in
       let b = !pos in
-      let e = b + length t in
+      let e = b + len in
       pos := e;
       try
         let next, help =
@@ -434,14 +412,24 @@ let colors buffer start end_ =
             | Pad -> assert false
         in
         (try
+           (* positions are now relative to the beginning of the token, so that
+              we can compare them after shifting. *)
            let faces =
-             snd (List.hd !any_token2faces) t ~before:!before ~after:!after b e in
-           List.iter
-             (function b', e', face ->
-               if b <= b' && b' <= e' && e' <= e then
-                 let r = find face in
-                 r := (b', e') :: !r)
-             faces
+             snd (List.hd !any_token2faces) t ~before:!before ~after:!after 0 len in
+           (* only consider faces if they have changed, or we are inside the
+              replaced window (since we must recolorize this text) *)
+           if faces <> t.faces ||
+             t_start0 <= t_pos && t_pos <= t_end0 then (
+             set_faces t faces;
+             List.iter
+               (function b', e', face ->
+                 let b' = b + b' and e' = b + e' in
+                 if b <= b' && b' <= e' && e' <= e then
+                   let r = find face in
+                   r := (b', e') :: !r)
+               faces
+             ) else
+             debugln "colors for %d: [%d, %d[ unchanged" t_pos b e
          with _ -> ());
         next ();
         match help with
@@ -472,10 +460,5 @@ let set_theme name =
       (name, theme) :: List.remove_assoc name !any_token2faces
   with Not_found ->
     () (* Don't crash the server just because of missing theme *)
-(* cannot link :-(
-    let file =
-      name ^ (if Dynlink.is_native then ".cmxs" else ".cmo") in
-    Dynlink.loadfile file
-*)
 
 let list_themes () = List.map fst !any_token2faces

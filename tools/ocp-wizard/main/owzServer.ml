@@ -55,6 +55,7 @@ let callback_commands = [
   "Rename the toplevel module defined by the current source file",
   Rename true;
 
+(*
   "grep", [ [CTRL; Char 'o'] ; [Char 'g' ] ],
   "Show all definitions and references for the current ident",
   Grep false;
@@ -62,6 +63,7 @@ let callback_commands = [
   "grep-toplevel", [ [CTRL; Char 'o'] ; [Char 't' ] ; [Char 'g' ] ],
   "Grep the toplevel module defined by the current source file",
   Grep true;
+*)
 
   "undo", [ [CTRL; Char 'o'] ; [Char 'u' ] ],
   "Undo the last multiple-file refactoring action",
@@ -150,16 +152,19 @@ let commands =
       | [] -> Config
       | _ -> raise Invalid_command);
 
+  "grep", (function
+    | [] -> Grep false
+    | _ -> raise Invalid_command);
+
+  "grep-toplevel", (function
+    | [] -> Grep true
+    | _ -> raise Invalid_command);
+
   ]
 
-(* Emacs-specific; we'll generalize this soon *)
-let config_info =
-  Printf.sprintf
-    "((version . %S) (ocamllib . %S))"
-    Typerex_config.typerex_version Config.standard_library
-
 module OwzSocketServer
-  (SocketCallback : IDE_Callback.SocketCallback) = struct
+  (SocketCallback : IDE_Callback.SocketCallback)
+  (Specifics : IDE_Specifics.T) = struct
 
     let process_regular_command ~background ?cwd ~data connection command =
       let module IDE =
@@ -167,11 +172,11 @@ module OwzSocketServer
               let connection = connection
             end)
       in
-      let module UI = OwzUI.Make(IDE) in
+      let module UI = OwzUI.Make(IDE)(Specifics) in
   (*      let open UI in *)
       match command with
         | Rename toplevel -> UI.rename toplevel ; "OK"
-        | Grep toplevel -> UI.grep toplevel ; "OK"
+        | Grep toplevel -> UI.grep toplevel
         | GotoDefinition -> UI.goto_definition () ; "OK"
         | CommentDefinition -> UI.comment_definition () ; "OK"
         | CycleDefinitions -> UI.cycle_definitions () ; "OK"
@@ -190,7 +195,7 @@ module OwzSocketServer
         | PreCacheBuffer buffername ->
           background := Some (function () -> OwzUI.pre_cache_buffer buffername);
           "OK"
-        | Config -> config_info
+        | Config -> Specifics.config_info
 
 class owzConnection ic oc = object (self)
   inherit Ocp_rpc.tagged_connection ic oc

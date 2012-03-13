@@ -20,17 +20,9 @@
 ;; This file registers hooks to let ocp-wizard know about the current
 ;; buffer contents, enabling completion and a fontification.
 
-(defcustom ocp-theme nil
-  "coloring theme (one of syntactic, tuareg_like, and tuareg).
-  - syntactic uses the new OCP Faces
-  - tuareg_like and tuareg uses the TypeRex Face, which are the Tuareg
-  tuareg_like is a full re-implementation of Tuareg coloring, with not
-  exactly the same bugs. tuareg is the unchanged tuareg implementation."
-  :group 'ocp :type '(string))
-
 (defcustom ocp-auto-complete nil
   "If true, enable TypeRex auto-completion"
-  :group 'ocp :type '(boolean))
+  :group 'typerex-auto-complete :type '(boolean))
 
 (defcustom ocp-pre-cache t
   "If true, pre-cache the cmt to prevent pausing at first
@@ -38,7 +30,7 @@ completion. We use a counter to avoid the deadlocks that used to
 happen when either:
  - Emacs is started on several files simultaneously
  - User begins typing during Emacs startup."
-  :group 'ocp :type '(boolean))
+  :group 'typerex-auto-complete :type '(boolean))
 
 ;; If ocp-buffer-bytes = 0, then next update will (re)set the buffer
 ;; contents on the server.
@@ -181,32 +173,27 @@ modifications are tracked explicitely thanks to ocp-update-modified."
         (eval (read command))
       (error (message "Error during fontification: %s" e)))))
 
-;; This is a nice trick which prevents long pauses, but if we didn't
-;; check for pending commands, it would crash Emacs (deadlock) if either:
-;; - Emacs is started on several files simultaneously
-;; - User begins typing during Emacs startup.
+;; This is a nice trick which prevents long pauses.
 (defun ocp-pre-cache-buffer (buffer)
   (run-with-idle-timer
    0 nil
-   (lambda (buffer)
-     (if (eq ocp-pending-commands 0)
-         (progn
-           (owz-string-command (concat "pre-cache-buffer " buffer))
-           )
-       (message "delaying pre-cache for %s" buffer)
-       (ocp-pre-cache-buffer buffer)
-       ))
+   (lambda (buffer) (owz-string-command (concat "pre-cache-buffer " buffer)))
    buffer))
 
 ;; Install modification hooks and font-lock function
 (add-hook
  'typerex-mode-hook
  (lambda ()
+   (when (and ocp-syntax-coloring (string= ocp-theme "caml"))
+     (if (require 'caml-font nil t)
+         (eval '(caml-font-set-font-lock))
+       (message "caml-font not found")))
    (if (is-ocaml-buffer)
        (progn
          ;; If either coloring or completion are enabled, then track
          ;; modifications in each TypeRex-enabled buffer.
-         (if (or (and ocp-syntax-coloring (not (string= ocp-theme "tuareg")))
+         (if (or (and ocp-syntax-coloring
+                      (not (member ocp-theme '("tuareg" "caml"))))
                  ocp-auto-complete)
              (progn
                ;; Record each modification
@@ -218,7 +205,8 @@ modifications are tracked explicitely thanks to ocp-update-modified."
          ;; typerex-fontify-changed-region, which we register by redefining
          ;; typerex-install-font-lock.
          (make-local-variable 'font-lock-fontify-region-function)
-         (if (and ocp-syntax-coloring (not (string= ocp-theme "tuareg")))
+         (if (and ocp-syntax-coloring
+                  (not (member ocp-theme '("tuareg" "caml"))))
              (setq font-lock-fontify-region-function
                    'typerex-fontify-changed-region))
          ;; If auto-completion is enabled, modifications are also
@@ -233,3 +221,9 @@ modifications are tracked explicitely thanks to ocp-update-modified."
               (lambda () (ocp-pre-cache-buffer (buffer-name)))
               t t))
          ))))
+
+;; Flymake workaround (incompatible with syntax coloring)
+(defadvice flymake-get-file-name-mode-and-masks (around ocp-flymake-fix activate)
+  (condition-case nil
+      ad-do-it
+    (error nil)))

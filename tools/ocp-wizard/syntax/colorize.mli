@@ -17,9 +17,20 @@
 
 (** Syntax coloring *)
 
+(** This module provides the general algorithmics for computing syntax
+    coloring, using on-demand forward and backward search in the
+    sequence of tokens. This primitive implementation is both costly
+    and approximate (and hard to read and maintain), so it should be
+    improved by storing a stack of opened constructs in the future.
+    The actual coloring themes are implemented as plugins which
+    registered themselves using one of the [register] functions (see
+    directory coloring_themes). *)
+
 (** [colors buffer start end_] colorizes the changed region \[start,
     end_\[ (in chars), and returns an enlarged region to fontify, and
-    the faces and helps to apply. *)
+    the faces and helps to apply. The argument region is always fully
+    re-colorised, while tokens outside this region are only
+    recolorised if they have changed. *)
 val colors :
   OcamlTokenize.OCamlTokenBuffer.tokenized_buffer -> int -> int ->
   (int * int) *

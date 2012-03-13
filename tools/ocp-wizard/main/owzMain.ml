@@ -152,10 +152,12 @@ let parse_command_line ?(current=current) ?(argv=Sys.argv) () =
 
 let process_command = function
   | EmacsServer port ->
-    let module OwzEmacsServer = OwzServer.OwzSocketServer(EmacsCallback.Make) in
+    let module OwzEmacsServer =
+      OwzServer.OwzSocketServer(EmacsCallback.Make)(IDE_Specifics.Emacs) in
     Ocp_rpc.client (fun _ -> OwzEmacsServer.start_server) port
   | EclipseServer port ->
-    let module OwzEclipseServer = OwzServer.OwzSocketServer(EclipseCallback.Make) in
+    let module OwzEclipseServer =
+      OwzServer.OwzSocketServer(EclipseCallback.Make)(IDE_Specifics.Eclipse) in
     Ocp_rpc.client (fun _ -> OwzEclipseServer.start_server) port
   | EmacsPlugin filename ->
     let module Plugin = OwzServer.MakePlugin(Emacs) in
@@ -171,3 +173,8 @@ let _ =
     debugln "OCP Wizard server terminated on uncaught exception: %s\n%s"
       (Printexc.to_string e) backtrace;
     exit 2
+
+
+
+
+

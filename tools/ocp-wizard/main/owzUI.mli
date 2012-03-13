@@ -32,19 +32,22 @@ val colorize :
   string ->
   (int * int) *
   (Face.face * (int * int) list) list *
-  ((int * int) * string) list
+  ((int * int) * string) list *
+  (int * int)
 val completion : string -> int -> string * (char * string) list
 val last_completion_doc : string -> candidate:string -> string
 val pre_cache_buffer : string -> unit
 
 (** {2 Fully interactive UI (needs callbacks)} *)
 
-module Make : functor (IDE : IDE_Callback.Callback) -> sig
+module Make :
+  functor (IDE : IDE_Callback.Callback) ->
+  functor (Specifics : IDE_Specifics.T) -> sig
 
   val rename : bool -> unit
   val prune_lids : unit -> unit
   val eliminate_open : unit -> unit
-  val grep : bool -> unit
+  val grep : bool -> string
   val comment_definition : unit -> unit
   val goto_definition : unit -> unit
   val cycle_definitions : unit -> unit

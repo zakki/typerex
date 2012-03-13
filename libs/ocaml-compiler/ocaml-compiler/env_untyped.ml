@@ -18,6 +18,9 @@
 open Env
 open Env_fold
 
+(* Force the linking of Includemod, to fill the corward declaration in Env. *)
+let _ = Includemod.modtypes
+
 type path_sort =
   | Value
   | Annot
