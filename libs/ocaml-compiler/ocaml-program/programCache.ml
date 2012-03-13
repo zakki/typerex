@@ -552,12 +552,10 @@ type pos = [ `cnum of int | `lc of int * int ]
 
 let last_cnum2old_lc program source pos =
   let last_lc chunks =
-    let old_cnum = 
-      match pos with
-        | `lc (l, c) -> Diff.lnum2cnum `last chunks l c
-        | `cnum cnum -> cnum
-    in
-    Diff.cnum2lnum `old chunks (Diff.last2old `char chunks old_cnum)
+    match pos with
+      | `lc lc -> lc
+      | `cnum cnum ->
+        Diff.cnum2lnum `old chunks (Diff.last2old `char chunks cnum)
   in
   try
     let chunks = source2modified program source in

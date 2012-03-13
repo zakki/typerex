@@ -1,7 +1,3 @@
-1.0.1
-
-- Fixed a missing alignment bug introduced to support windows eol
-
 1.0.0
 
 - Prefixed ocp-faces for cleaner namespace (requires replacement)
