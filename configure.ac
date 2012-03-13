@@ -1,5 +1,5 @@
 # Set VERSION so we ongit ly need to edit it one place (ie. here)
-AC_INIT(TypeRex, 1.0.0, contact@ocamlpro.com)
+AC_INIT(TypeRex, 1.0.1, contact@ocamlpro.com)
 
 AC_COPYRIGHT(Copyright 2011 OcamlPro SAS)
 
