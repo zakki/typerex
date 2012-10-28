@@ -29,6 +29,7 @@ module INTERFACE = struct
 
   let versions =
   [
+    V4001_types.ast_intf_magic_number, ("4.00", V4001_input.input_ast_intf);
     Config.ast_intf_magic_number, ("Current", input_ast_intf);
     V3120_types.ast_intf_magic_number, ("3.12", V3120_input.input_ast_intf);
     V3120_camlp4.camlp4_ast_intf_magic_number,
@@ -81,6 +82,7 @@ module IMPLEMENTATION = struct
 
   let versions =
   [
+    V4001_types.ast_impl_magic_number, ("4.00", V4001_input.input_ast_impl);
     Config.ast_impl_magic_number, ("Current", input_ast_impl);
     V3120_types.ast_impl_magic_number, ("3.12", V3120_input.input_ast_impl);
     V3120_camlp4.camlp4_ast_impl_magic_number,

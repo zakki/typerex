@@ -23,6 +23,9 @@ begin library "ocaml-bincompat"
     "bincompat.ml";
 (*    "oCamlTypes.ml" *)
 
+    "v4001_types.ml"; (* 4.00.1 *)
+    "v4001_input.ml";
+
     "v3120_types.ml"; (* 3.12.0 and 3.12.1 *)
     "v3120_camlp4.ml"; (* 3.12.0 and 3.12.1 *)
     "v3120_input.ml";

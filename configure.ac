@@ -17,8 +17,10 @@ AC_ARG_ENABLE(version-check,
  [VERSION_CHECK="$enableval"],
  [VERSION_CHECK="yes"])
 
-# Check that OCaml version is 3.11.2 or 3.12.1
+# Check that OCaml version is 3.11.2, 3.12, or 4.00
 if test "$VERSION_CHECK" = "yes" &&
+   test "$OCAMLVERSION" != "4.00.1" &&
+   test "$OCAMLVERSION" != "4.00.0" &&
    test "$OCAMLVERSION" != "3.11.2" &&
    test "$OCAMLVERSION" != "3.12.0" &&
    test "$OCAMLVERSION" != "3.12.1" ; then

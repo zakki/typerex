@@ -21,6 +21,7 @@
 open Env
 
 let versions = [
+  V4001_types.cmi_magic_number, ("4.00", V4001_input.input_cmi);
   Config.cmi_magic_number, ("Current", input_cmi);
   V3120_types.cmi_magic_number, ("3.12", V3120_input.input_cmi);
   V3112_types.cmi_magic_number, ("3.11", V3112_input.input_cmi);
