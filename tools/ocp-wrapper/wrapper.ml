@@ -79,6 +79,7 @@ let rec filter_for_type = function
      with Not_found -> filter_for_type l)
   | "-pp" :: pp :: l ->
     "-pp" :: wrap_pp pp :: filter_for_type l
+  | "-ccopt" :: _ :: l -> filter_for_type l
   | ("-custom" | "-fPIC" | "-fno-PIC" | "-compact" | "-nodynlink" | "-p" |
      "-S" | "-shared" | "-vmthread" |
      "-instr" | "-dcmm" | "-dsel" | "-dcombine" | "-dlive" | "-dspill" |
