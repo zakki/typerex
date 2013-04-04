@@ -164,6 +164,13 @@ let check_lines linenum dir_stack all_lines =
                 Printf.fprintf stderr "Found a missing semi-colon (two many args)\n%!";
                     FixSemi.fix_line loc
 
+              | error_line :: next_lines when
+                  OcpString.starts_with error_line
+                    "Warning 33: unused open"
+                  ->
+                Printf.fprintf stderr "Found unused open\n%!";
+                    FixUnusedOpen.fix loc (directory dir_stack) next_lines
+
               | _ ->
                 ()
           end;

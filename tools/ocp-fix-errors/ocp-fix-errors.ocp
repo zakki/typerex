@@ -35,6 +35,7 @@ begin library "ocp-fix-errors-lib"
   "fixSemi.ml"
   "fixUnusedVariables.ml"
   "fixUnusedPatterns.ml"
+  "fixUnusedOpen.ml"
 
 ]
   requires = [ "ocaml-approx-lexer" "ocaml-parsing" "ocplib-lang" "ocplib-system" ]
